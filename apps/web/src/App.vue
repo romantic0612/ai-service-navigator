@@ -48,7 +48,11 @@ function resolveUserId() {
 
   const storedUserId = window.localStorage.getItem('aibs_user_id');
   if (storedUserId) {
-    return storedUserId;
+    if (import.meta.env.PROD && storedUserId === 'demo-user') {
+      window.localStorage.removeItem('aibs_user_id');
+    } else {
+      return storedUserId;
+    }
   }
 
   if (import.meta.env.PROD) {
@@ -56,7 +60,12 @@ function resolveUserId() {
     return '';
   }
 
-  return 'demo-user';
+  const devUserId = 'demo-user';
+  if (storedUserId) {
+    return storedUserId;
+  }
+
+  return devUserId;
 }
 
 const pendingCandidates = computed(() => {
