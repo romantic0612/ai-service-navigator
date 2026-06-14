@@ -36,6 +36,12 @@ Dify：36.136.68.127
 docs/mysql-schema.sql
 ```
 
+导入第一批真实事项：
+
+```text
+docs/seed-service-items.sql
+```
+
 执行前把 SQL 里的：
 
 ```text
@@ -48,9 +54,7 @@ CHANGE_ME_STRONG_PASSWORD
 
 API 服务器 `210.45.177.21` 上的 `.env` 需要这样连接远程 MySQL：
 
-```env
-DATABASE_URL="mysql://navigator:你的密码@114.213.146.102:3306/aibs"
-```
+应用可以先用 root 临时联调，但不建议长期使用 root。正式运行建议创建并使用 `navigator` 业务账号。
 
 如果使用 `docker-compose.yml` 的 API 容器，也建议改成直接读取 `DATABASE_URL`，不要再默认拼容器内 MySQL 地址。
 

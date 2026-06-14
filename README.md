@@ -45,6 +45,12 @@ MYSQL_USER=navigator
 docs/mysql-schema.sql
 ```
 
+真实办事事项种子数据：
+
+```text
+docs/seed-service-items.sql
+```
+
 ## 启动后端
 
 当前是在你电脑本地开发，不是在服务器上执行。
