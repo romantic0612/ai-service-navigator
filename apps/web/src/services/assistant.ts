@@ -36,6 +36,19 @@ export type ProfileUpdateCandidate = {
   reason: string;
 };
 
+export type ProfileSummary = {
+  userId: string;
+  name?: string;
+  role?: string;
+  college?: string;
+  major?: string;
+  grade?: string;
+  campus?: string;
+  studentStatus?: string;
+  tags: string[];
+  recentIntents: string[];
+};
+
 export type AssistantReply = {
   action: 'clarify' | 'recommend_service' | 'no_reliable_result';
   message: string;
@@ -44,6 +57,12 @@ export type AssistantReply = {
   serviceCards?: ServiceCard[];
   profileUpdateCandidates?: ProfileUpdateCandidate[];
 };
+
+export async function getProfileSummary(userId: string) {
+  const response = await axios.get<ProfileSummary>(`${apiBaseUrl}/profiles/${userId}/summary`);
+
+  return response.data;
+}
 
 export async function sendAssistantMessage(message: string, userId: string) {
   const response = await axios.post<AssistantReply>(`${apiBaseUrl}/assistant/message`, {

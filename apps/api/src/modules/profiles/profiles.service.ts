@@ -43,6 +43,7 @@ export class ProfilesService {
       if (profile) {
         return {
           userId,
+          name: profile.name ?? undefined,
           role: profile.role ?? undefined,
           college: profile.college ?? undefined,
           major: profile.major ?? undefined,
@@ -215,6 +216,7 @@ export class ProfilesService {
   private getFallbackSummary(userId: string): ProfileSummary {
     return {
       userId,
+      name: '演示用户',
       role: '本科生',
       college: '计算机学院',
       grade: '大四',

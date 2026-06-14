@@ -3,9 +3,11 @@ import { Bot, Check, Send, Sparkles, X } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import ServiceCard from './components/ServiceCard.vue';
 import {
+  getProfileSummary,
   saveProfileMemory,
   sendAssistantMessage,
   type AssistantReply,
+  type ProfileSummary,
   type ProfileUpdateCandidate,
 } from './services/assistant';
 
@@ -21,6 +23,8 @@ const loading = ref(false);
 const nextId = ref(3);
 const savedCandidates = ref<string[]>([]);
 const currentUserId = ref(resolveUserId());
+const profile = ref<ProfileSummary | null>(null);
+const displayName = computed(() => profile.value?.name || '我的');
 const messages = ref<ChatMessage[]>([
   {
     id: 1,
@@ -35,6 +39,16 @@ const messages = ref<ChatMessage[]>([
 ]);
 
 const quickPrompts = ['云盘怎么用', '体育场馆预约', '学生档案去向查询', '我想给学校提建议'];
+
+if (currentUserId.value) {
+  getProfileSummary(currentUserId.value)
+    .then((summary) => {
+      profile.value = summary;
+    })
+    .catch(() => {
+      profile.value = null;
+    });
+}
 
 function resolveUserId() {
   const url = new URL(window.location.href);
@@ -129,11 +143,10 @@ function dismissCandidate(candidate: ProfileUpdateCandidate) {
           <Sparkles :size="19" />
         </div>
         <div>
-          <h1>AI 办事助手</h1>
-          <p>本科生 · 人工智能学院</p>
+          <h1>AI 办事</h1>
         </div>
       </div>
-      <button class="ghost-button" type="button">画像</button>
+      <button class="ghost-button" type="button">{{ displayName }}</button>
     </header>
 
     <section class="chat-panel" aria-label="AI 办事对话">

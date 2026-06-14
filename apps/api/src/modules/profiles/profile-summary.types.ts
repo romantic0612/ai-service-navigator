@@ -1,5 +1,6 @@
 export type ProfileSummary = {
   userId: string;
+  name?: string;
   role?: string;
   college?: string;
   major?: string;
