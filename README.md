@@ -39,8 +39,11 @@ MYSQL_USER=navigator
 
 ## 启动后端
 
+当前是在你电脑本地开发，不是在服务器上执行。
+
 ```bash
 npm install
+npm run prisma:generate
 npm run build:api
 npm run dev:api
 ```
@@ -52,6 +55,32 @@ copy apps\api\.env.example apps\api\.env
 ```
 
 然后修改 `apps/api/.env` 中的数据库地址和 Dify 配置。
+
+## 初始化数据库
+
+如果只想先跑接口 demo，可以暂时不启动 MySQL，接口会使用内置 mock 数据兜底。
+
+如果要在你电脑本地启动 MySQL：
+
+```bash
+copy .env.example .env
+docker compose up -d mysql redis
+```
+
+然后执行：
+
+```bash
+npm --workspace apps/api run prisma:generate
+npm --workspace apps/api run prisma:migrate -- --name init
+npm --workspace apps/api run db:seed
+```
+
+服务器生产环境以后再使用：
+
+```bash
+npm --workspace apps/api run prisma:deploy
+npm --workspace apps/api run db:seed
+```
 
 ## 第一版接口
 

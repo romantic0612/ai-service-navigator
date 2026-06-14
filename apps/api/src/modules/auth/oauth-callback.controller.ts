@@ -23,13 +23,13 @@ export class OAuthCallbackController {
 
     const token = await this.oauthClientService.exchangeCodeForToken(code);
     const profile = await this.oauthClientService.getProfile(token.access_token);
-    const normalizedProfile = this.profilesService.normalizeOAuthProfile(profile);
+    const normalizedProfile = await this.profilesService.upsertOAuthProfile(profile);
 
     return {
       authenticated: true,
       expiresIn: token.expires_in,
       profile: normalizedProfile,
-      next: 'Persist profile to MySQL after Prisma database connection is enabled.',
+      next: 'Profile persisted. Redirect to H5 home after frontend route is ready.',
     };
   }
 }

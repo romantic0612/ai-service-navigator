@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { ServiceItemCard, ServiceSearchResult } from './service-item.types';
 
 type DemoServiceItem = ServiceItemCard & {
   searchTerms: string[];
 };
 
-const demoItems: DemoServiceItem[] = [
+export const demoItems: DemoServiceItem[] = [
   {
     id: 'principal-secretary-mailbox',
     title: '书记校长信箱',
@@ -172,33 +173,39 @@ const demoItems: DemoServiceItem[] = [
 
 @Injectable()
 export class ServiceItemsService {
-  search(query: string): ServiceSearchResult {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async search(query: string): Promise<ServiceSearchResult> {
     const normalizedQuery = query.trim().toLowerCase();
+    const searchableItems = await this.getSearchableItems();
+
     if (!normalizedQuery) {
-      return { items: demoItems.slice(0, 3).map((item) => this.toCard(item)), matchedBy: 'mock' };
+      return { items: searchableItems.slice(0, 3).map((item) => this.toCard(item)), matchedBy: 'mock' };
     }
 
-    const scoredItems = demoItems
+    const scoredItems = searchableItems
       .map((item) => ({
         item,
         score: this.scoreItem(item, normalizedQuery),
       }))
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score);
-    const items = scoredItems.map(({ item }) => this.toCard(item));
+    const resultItems = scoredItems.map(({ item }) => this.toCard(item));
 
     return {
-      items: items.slice(0, 5),
-      matchedBy: items.length > 0 ? 'keyword' : 'mock',
+      items: resultItems.slice(0, 5),
+      matchedBy: resultItems.length > 0 ? 'keyword' : 'mock',
     };
   }
 
-  recommendForProfile(tags: string[]): ServiceItemCard[] {
+  async recommendForProfile(tags: string[]): Promise<ServiceItemCard[]> {
+    const items = await this.getSearchableItems();
+
     if (tags.includes('毕业生') || tags.includes('关注考研')) {
-      return demoItems.filter((item) => item.id === 'transcript-print').map((item) => this.toCard(item));
+      return items.filter((item) => item.id === 'transcript-print').map((item) => this.toCard(item));
     }
 
-    return demoItems.slice(0, 3).map((item) => this.toCard(item));
+    return items.slice(0, 3).map((item) => this.toCard(item));
   }
 
   private scoreItem(item: DemoServiceItem, query: string): number {
@@ -215,5 +222,43 @@ export class ServiceItemsService {
   private toCard(item: DemoServiceItem): ServiceItemCard {
     const { searchTerms: _searchTerms, ...card } = item;
     return card;
+  }
+
+  private async getSearchableItems(): Promise<DemoServiceItem[]> {
+    try {
+      const serviceItems = await this.prisma.serviceItem.findMany({
+        where: { status: 'ENABLED' },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      if (serviceItems.length === 0) {
+        return demoItems;
+      }
+
+      return serviceItems.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        category: item.category,
+        description: item.description ?? undefined,
+        handlerCount: item.handlerCount ?? undefined,
+        entryUrl: item.entryUrl,
+        department: item.department ?? undefined,
+        contactPerson: item.contactPerson ?? undefined,
+        contactPhone: item.contactPhone ?? undefined,
+        serviceTime: item.serviceTime ?? undefined,
+        basis: item.basis ?? undefined,
+        materials: this.toStringArray(item.materials),
+        processSteps: this.toStringArray(item.processSteps),
+        notice: item.notice ?? undefined,
+        lastVerifiedAt: item.lastVerifiedAt?.toISOString().slice(0, 10),
+        searchTerms: this.toStringArray(item.keywords),
+      }));
+    } catch {
+      return demoItems;
+    }
+  }
+
+  private toStringArray(value: unknown): string[] {
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
   }
 }

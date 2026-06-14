@@ -112,3 +112,26 @@ https://xgaigc.ahau.edu.cn/callback
 - OAuth 回调可以进入后端
 - 登录成功后写入 `user_profiles`
 - 手机端 H5 可以通过域名访问
+
+## 数据库初始化
+
+下面命令是服务器部署阶段才执行，不是在当前本地电脑执行。
+
+首次部署后，在服务器项目目录执行：
+
+```bash
+docker compose up -d mysql redis
+npm install
+npm --workspace apps/api run prisma:generate
+npm --workspace apps/api run prisma:migrate -- --name init
+npm --workspace apps/api run db:seed
+docker compose up -d api
+```
+
+如果后续已经有迁移文件，生产环境可用：
+
+```bash
+npm --workspace apps/api run prisma:deploy
+npm --workspace apps/api run db:seed
+docker compose up -d api
+```

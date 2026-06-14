@@ -10,13 +10,13 @@ export class AssistantService {
     private readonly serviceItemsService: ServiceItemsService,
   ) {}
 
-  reply(userId: string, message: string): AssistantReply {
-    const profile = this.profilesService.getSummary(userId);
-    const searchResult = this.serviceItemsService.search(message);
+  async reply(userId: string, message: string): Promise<AssistantReply> {
+    const profile = await this.profilesService.getSummary(userId);
+    const searchResult = await this.serviceItemsService.search(message);
     const serviceCards =
       searchResult.items.length > 0
         ? searchResult.items
-        : this.serviceItemsService.recommendForProfile(profile.tags);
+        : await this.serviceItemsService.recommendForProfile(profile.tags);
 
     const profileUpdateCandidates = this.extractProfileUpdateCandidates(message);
 

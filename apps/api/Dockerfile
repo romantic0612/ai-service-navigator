@@ -8,6 +8,7 @@ FROM node:24-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN npm --workspace apps/api run prisma:generate
 RUN npm run build:api
 
 FROM node:24-alpine AS runtime
