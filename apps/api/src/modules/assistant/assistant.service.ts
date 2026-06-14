@@ -32,7 +32,7 @@ export class AssistantService {
         ? searchResult.items
         : roleMismatchResult?.items.length
           ? roleMismatchResult.items
-          : await this.serviceItemsService.recommendForProfile(profile);
+          : [];
 
     const profileUpdateCandidates = this.mergeProfileCandidates([
       ...this.extractProfileUpdateCandidates(message),

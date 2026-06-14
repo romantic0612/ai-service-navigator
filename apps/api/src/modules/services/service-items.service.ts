@@ -218,28 +218,87 @@ export class ServiceItemsService {
   }
 
   private scoreItem(item: DemoServiceItem, query: string): number {
-    const terms = [item.title, item.category, ...item.searchTerms].map((term) => term.toLowerCase());
+    const normalizedQuery = this.normalizeSearchText(query);
+    const terms = [item.title, item.category, ...item.searchTerms]
+      .map((term) => this.normalizeSearchText(term))
+      .filter(Boolean);
     let baseScore = 0;
-    const title = item.title.toLowerCase();
-    const category = item.category.toLowerCase();
+    const title = this.normalizeSearchText(item.title);
+    const category = this.normalizeSearchText(item.category);
 
-    if (query === title || query.includes(title)) {
-      baseScore += 100;
-    } else if (title.includes(query)) {
-      baseScore += 70;
+    if (normalizedQuery === title || normalizedQuery.includes(title)) {
+      baseScore += 160;
+    } else if (title.includes(normalizedQuery)) {
+      baseScore += 120;
+    } else {
+      const titleSimilarity = this.ngramSimilarity(normalizedQuery, title);
+      if (titleSimilarity >= 0.58) {
+        baseScore += Math.round(100 * titleSimilarity);
+      }
     }
 
-    if (query.includes(category) || category.includes(query)) {
+    if (normalizedQuery.includes(category) || category.includes(normalizedQuery)) {
       baseScore += 18;
     }
 
     return terms.reduce((score, term) => {
-      if (query.includes(term) || term.includes(query)) {
+      if (term.length < 2) {
+        return score;
+      }
+
+      if (normalizedQuery.includes(term) || term.includes(normalizedQuery)) {
         return score + term.length + 5;
+      }
+
+      const similarity = this.ngramSimilarity(normalizedQuery, term);
+      if (similarity >= 0.62) {
+        return score + Math.round(40 * similarity);
       }
 
       return score;
     }, baseScore);
+  }
+
+  private normalizeSearchText(value: string): string {
+    return value
+      .toLowerCase()
+      .replace(/\s+/g, '')
+      .replace(/[，,。.!！？?；;：:“”"'‘’（）()【】\[\]《》<>、/\\|_-]/g, '')
+      .replace(/教室/g, '教师')
+      .replace(/老师/g, '教师')
+      .replace(/導師/g, '导师')
+      .replace(/導/g, '导')
+      .replace(/師/g, '师');
+  }
+
+  private ngramSimilarity(left: string, right: string): number {
+    if (!left || !right) {
+      return 0;
+    }
+
+    if (left === right) {
+      return 1;
+    }
+
+    const leftGrams = this.toNgrams(left);
+    const rightGrams = this.toNgrams(right);
+    const intersection = [...leftGrams].filter((gram) => rightGrams.has(gram)).length;
+    const union = new Set([...leftGrams, ...rightGrams]).size;
+
+    return union === 0 ? 0 : intersection / union;
+  }
+
+  private toNgrams(value: string): Set<string> {
+    if (value.length <= 2) {
+      return new Set([value]);
+    }
+
+    const grams = new Set<string>();
+    for (let index = 0; index < value.length - 1; index += 1) {
+      grams.add(value.slice(index, index + 2));
+    }
+
+    return grams;
   }
 
   private compactScoredItems<T extends { score: number }>(scoredItems: T[]): T[] {
