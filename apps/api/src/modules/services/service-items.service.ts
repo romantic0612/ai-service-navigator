@@ -275,6 +275,10 @@ export class ServiceItemsService {
       return true;
     }
 
+    if (allowedRoles.some((allowedRole) => allowedRole.includes(normalizedRole))) {
+      return true;
+    }
+
     if (normalizedRole === '教师' && allowedRoles.includes('教职工')) {
       return true;
     }
