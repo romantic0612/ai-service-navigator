@@ -1,4 +1,4 @@
-# 服务器部署思路
+﻿# 服务器部署思路
 
 服务器系统：欧拉系统，已安装 Docker。
 
@@ -7,7 +7,7 @@
 ```text
 API/H5/OAuth 入口服务器 IP：210.45.177.21
 MySQL 服务器 IP：114.213.146.102
-Dify 服务器 IP：36.136.68.127
+Dify 服务器 IP：36.138.68.127
 正式域名：https://xgaigc.ahau.edu.cn
 移动端形式：H5
 建议服务器目录：/opt/ai-service-navigator
@@ -26,7 +26,7 @@ https://xgaigc.ahau.edu.cn
     ↓
 MySQL：114.213.146.102
     ↓
-Dify：36.136.68.127
+Dify：36.138.68.127
 ```
 
 ## 原则

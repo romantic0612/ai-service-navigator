@@ -1,4 +1,4 @@
-# 数据库部署建议
+﻿# 数据库部署建议
 
 ## 推荐放置
 
@@ -7,7 +7,7 @@
 ```text
 MySQL：114.213.146.102
 API/H5/OAuth 入口：210.45.177.21
-Dify：36.136.68.127
+Dify：36.138.68.127
 ```
 
 这样更好维护：
@@ -91,13 +91,13 @@ MYSQL_DATABASE=aibs
 Dify 在：
 
 ```text
-36.136.68.127
+36.138.68.127
 ```
 
 API 服务器 `.env` 中设置：
 
 ```env
-DIFY_API_BASE_URL="http://36.136.68.127:端口/v1"
+DIFY_API_BASE_URL="http://36.138.68.127:端口/v1"
 DIFY_INTENT_API_KEY="你的 Dify Workflow API Key"
 ```
 

@@ -3,10 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { ProfileSummary } from '../profiles/profile-summary.types';
 import { ProfileUpdateCandidate } from '../assistant/assistant.types';
 
-type DifyWorkflowResponse = {
-  data?: {
-    outputs?: Record<string, unknown>;
-  };
+type DifyChatMessageResponse = {
+  answer?: string;
+  conversation_id?: string;
 };
 
 export type DifyIntentResult = {
@@ -34,11 +33,8 @@ export class DifyService {
     }
 
     try {
-      const response = await this.runWorkflow(apiKey, {
-        query,
-        profile_summary: JSON.stringify(profile),
-      });
-      const outputs = response.data?.outputs ?? {};
+      const response = await this.sendChatMessage(apiKey, query, profile);
+      const outputs = this.parseAnswerJson(response.answer);
 
       return {
         intent: this.toOptionalString(outputs.intent),
@@ -48,23 +44,32 @@ export class DifyService {
         profileUpdateCandidates: this.toProfileCandidates(outputs.profile_update_candidates),
       };
     } catch (error) {
-      this.logger.warn(`Dify intent workflow failed: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(`Dify intent chat failed: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
   }
 
-  private async runWorkflow(apiKey: string, inputs: Record<string, unknown>): Promise<DifyWorkflowResponse> {
+  private async sendChatMessage(
+    apiKey: string,
+    query: string,
+    profile: ProfileSummary,
+  ): Promise<DifyChatMessageResponse> {
     const baseUrl = this.configService.get<string>('DIFY_API_BASE_URL') ?? 'https://api.dify.ai/v1';
-    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/workflows/run`, {
+    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat-messages`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        inputs,
+        inputs: {
+          profile_summary: JSON.stringify(profile),
+        },
+        query,
         response_mode: 'blocking',
-        user: String(inputs.profile_user_id ?? 'ai-service-navigator'),
+        conversation_id: '',
+        user: profile.userId || 'ai-service-navigator',
+        files: [],
       }),
     });
 
@@ -72,7 +77,7 @@ export class DifyService {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    return (await response.json()) as DifyWorkflowResponse;
+    return (await response.json()) as DifyChatMessageResponse;
   }
 
   private getIntentApiKey(): string | undefined {
@@ -156,5 +161,21 @@ export class DifyService {
     } catch {
       return null;
     }
+  }
+
+  private parseAnswerJson(answer: unknown): Record<string, unknown> {
+    if (typeof answer !== 'string' || !answer.trim()) {
+      return {};
+    }
+
+    const cleaned = answer
+      .trim()
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/```$/i, '')
+      .trim();
+    const parsed = this.parseJson(cleaned);
+
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
   }
 }
