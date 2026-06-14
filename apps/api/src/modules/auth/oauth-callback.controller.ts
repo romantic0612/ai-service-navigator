@@ -1,4 +1,5 @@
-import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Query, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { ProfilesService } from '../profiles/profiles.service';
 import { OAuthClientService } from './oauth-client.service';
 import { OAuthStateService } from './oauth-state.service';
@@ -12,7 +13,7 @@ export class OAuthCallbackController {
   ) {}
 
   @Get('callback')
-  async handleCallback(@Query('code') code?: string, @Query('state') state?: string) {
+  async handleCallback(@Query('code') code?: string, @Query('state') state?: string, @Res() response?: Response) {
     if (!code) {
       throw new BadRequestException('Missing OAuth code');
     }
@@ -24,12 +25,8 @@ export class OAuthCallbackController {
     const token = await this.oauthClientService.exchangeCodeForToken(code);
     const profile = await this.oauthClientService.getProfile(token.access_token);
     const normalizedProfile = await this.profilesService.upsertOAuthProfile(profile);
+    const redirectUrl = `/?userId=${encodeURIComponent(normalizedProfile.userId)}`;
 
-    return {
-      authenticated: true,
-      expiresIn: token.expires_in,
-      profile: normalizedProfile,
-      next: 'Profile persisted. Redirect to H5 home after frontend route is ready.',
-    };
+    return response?.redirect(redirectUrl);
   }
 }

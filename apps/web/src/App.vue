@@ -20,6 +20,7 @@ const input = ref('');
 const loading = ref(false);
 const nextId = ref(3);
 const savedCandidates = ref<string[]>([]);
+const currentUserId = ref(resolveUserId());
 const messages = ref<ChatMessage[]>([
   {
     id: 1,
@@ -34,6 +35,29 @@ const messages = ref<ChatMessage[]>([
 ]);
 
 const quickPrompts = ['云盘怎么用', '体育场馆预约', '学生档案去向查询', '我想给学校提建议'];
+
+function resolveUserId() {
+  const url = new URL(window.location.href);
+  const queryUserId = url.searchParams.get('userId');
+  if (queryUserId) {
+    window.localStorage.setItem('aibs_user_id', queryUserId);
+    url.searchParams.delete('userId');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    return queryUserId;
+  }
+
+  const storedUserId = window.localStorage.getItem('aibs_user_id');
+  if (storedUserId) {
+    return storedUserId;
+  }
+
+  if (import.meta.env.PROD) {
+    window.location.href = '/auth/oauth/login';
+    return '';
+  }
+
+  return 'demo-user';
+}
 
 const pendingCandidates = computed(() => {
   return messages.value
@@ -56,7 +80,7 @@ async function submitMessage(text = input.value) {
 
   loading.value = true;
   try {
-    const reply = await sendAssistantMessage(message);
+    const reply = await sendAssistantMessage(message, currentUserId.value || 'demo-user');
     messages.value.push({
       id: nextId.value++,
       role: 'assistant',
@@ -79,7 +103,7 @@ function candidateKey(candidate: ProfileUpdateCandidate) {
 }
 
 async function rememberCandidate(candidate: ProfileUpdateCandidate) {
-  await saveProfileMemory(candidate);
+  await saveProfileMemory(candidate, currentUserId.value || 'demo-user');
   savedCandidates.value.push(candidateKey(candidate));
 }
 

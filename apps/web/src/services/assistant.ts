@@ -36,7 +36,7 @@ export type AssistantReply = {
   profileUpdateCandidates?: ProfileUpdateCandidate[];
 };
 
-export async function sendAssistantMessage(message: string, userId = 'demo-user') {
+export async function sendAssistantMessage(message: string, userId: string) {
   const response = await axios.post<AssistantReply>(`${apiBaseUrl}/assistant/message`, {
     userId,
     message,
@@ -45,7 +45,7 @@ export async function sendAssistantMessage(message: string, userId = 'demo-user'
   return response.data;
 }
 
-export async function saveProfileMemory(candidate: ProfileUpdateCandidate, userId = 'demo-user') {
+export async function saveProfileMemory(candidate: ProfileUpdateCandidate, userId: string) {
   const response = await axios.post<{ saved: boolean; reason?: string }>(`${apiBaseUrl}/profiles/${userId}/memories`, {
     key: candidate.key,
     value: candidate.value,

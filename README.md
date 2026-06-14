@@ -197,7 +197,7 @@ GET /callback?code=xxx&state=xxx
 现在已按学校 CAS OAuth2 文档实现：
 
 ```text
-code -> accessToken -> profile -> 标准化用户画像
+访问首页 -> OAuth 登录 -> code -> accessToken -> profile -> 写入 user_profiles -> 跳回 H5
 ```
 
 MySQL 接通后，会把标准化用户画像写入 `user_profiles`。

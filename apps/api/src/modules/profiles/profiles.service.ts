@@ -77,7 +77,7 @@ export class ProfilesService {
       name: attributes.Name,
       email: attributes.Email,
       phone: attributes.Phone || attributes.ContactTel,
-      gender: attributes.Gender,
+      gender: this.normalizeGender(attributes.Gender),
       role: this.parseRole(attributes.GroupName),
       groupName: attributes.GroupName,
       college: attributes.OrgName,
@@ -232,5 +232,17 @@ export class ProfilesService {
 
     const knownRoles = ['本科生', '研究生', '教职工', '教师'];
     return knownRoles.find((role) => groupName.includes(role));
+  }
+
+  private normalizeGender(gender?: string): string | undefined {
+    if (gender === '男') {
+      return '女';
+    }
+
+    if (gender === '女') {
+      return '男';
+    }
+
+    return gender;
   }
 }
