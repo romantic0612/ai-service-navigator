@@ -35,8 +35,10 @@ Dify：36.136.68.127
 数据库默认：
 
 ```text
+MYSQL_HOST=114.213.146.102
+MYSQL_PORT=3306
 MYSQL_DATABASE=aibs
-MYSQL_USER=navigator
+MYSQL_USER=root
 ```
 
 数据库建表 SQL：

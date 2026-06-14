@@ -1,6 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { demoItems } from '../src/modules/services/service-items.service';
+import { ensureDatabaseUrl } from '../src/config/database-url';
 
+ensureDatabaseUrl();
 const prisma = new PrismaClient();
 
 async function main() {

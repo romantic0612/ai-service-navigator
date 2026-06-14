@@ -24,7 +24,7 @@ Dify：36.136.68.127
 
 ```text
 数据库名：aibs
-业务账号：navigator
+当前联调账号：root
 端口：3306
 字符集：utf8mb4
 排序规则：utf8mb4_unicode_ci
@@ -42,7 +42,9 @@ docs/mysql-schema.sql
 docs/seed-service-items.sql
 ```
 
-执行前把 SQL 里的：
+如果你已经手动建好六张表，可以不用再执行建表 SQL。后续只执行事项种子 SQL 即可。
+
+如果要用 SQL 创建业务账号，执行前把 SQL 里的：
 
 ```text
 CHANGE_ME_STRONG_PASSWORD
@@ -52,11 +54,19 @@ CHANGE_ME_STRONG_PASSWORD
 
 ## API 服务器 .env
 
-API 服务器 `210.45.177.21` 上的 `.env` 需要这样连接远程 MySQL：
+API 服务器 `210.45.177.21` 上的 `.env` 用下面这种分字段格式即可：
+
+```env
+MYSQL_HOST=114.213.146.102
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=你的密码
+MYSQL_DATABASE=aibs
+```
+
+后端会自动把这些字段拼成 Prisma 需要的 `DATABASE_URL`，你不用手写 `DATABASE_URL`。
 
 应用可以先用 root 临时联调，但不建议长期使用 root。正式运行建议创建并使用 `navigator` 业务账号。
-
-如果使用 `docker-compose.yml` 的 API 容器，也建议改成直接读取 `DATABASE_URL`，不要再默认拼容器内 MySQL 地址。
 
 ## Navicat 连接
 
@@ -64,8 +74,8 @@ API 服务器 `210.45.177.21` 上的 `.env` 需要这样连接远程 MySQL：
 主机：114.213.146.102
 端口：3306
 数据库：aibs
-用户名：navigator
-密码：你设置的密码
+用户名：root
+密码：你设置的 root 密码
 ```
 
 ## 安全建议

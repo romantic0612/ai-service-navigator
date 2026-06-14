@@ -41,8 +41,10 @@ Dify：36.136.68.127
 ```env
 MYSQL_ROOT_PASSWORD="请在服务器填写强密码"
 MYSQL_DATABASE="aibs"
-MYSQL_USER="navigator"
-MYSQL_PASSWORD="请在服务器填写强密码"
+MYSQL_HOST="114.213.146.102"
+MYSQL_PORT=3306
+MYSQL_USER="root"
+MYSQL_PASSWORD="请在服务器填写 MySQL 密码"
 MYSQL_PUBLIC_PORT=3306
 REDIS_PUBLIC_PORT=6379
 API_PUBLIC_PORT=3000
@@ -61,8 +63,14 @@ OAUTH_SCOPE="cas_get_userInfo"
 如果 MySQL 放在 114.213.146.102，API 服务器上建议直接配置：
 
 ```env
-DATABASE_URL="mysql://navigator:密码@114.213.146.102:3306/aibs"
+MYSQL_HOST=114.213.146.102
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=你的密码
+MYSQL_DATABASE=aibs
 ```
+
+后端会自动生成 Prisma 使用的 `DATABASE_URL`。
 
 ## MySQL 与 Navicat
 
@@ -74,8 +82,8 @@ Navicat 连接信息：
 主机：114.213.146.102
 端口：3306
 数据库：aibs
-用户名：navigator
-密码：MySQL 服务器设置的 navigator 密码
+用户名：root
+密码：MySQL 服务器设置的 root 密码
 ```
 
 更安全的方式是服务器防火墙只允许你的校园网 IP 访问 `3306`，或者后续改成 SSH 隧道连接。
