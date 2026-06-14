@@ -330,6 +330,10 @@ export class ServiceItemsService {
     const normalizedRole = role.trim();
     const allowedRoles = targetRoles.map((targetRole) => targetRole.trim());
 
+    if (allowedRoles.some((allowedRole) => ['全部人员', '全体人员', '所有人员', '师生', '全校师生'].includes(allowedRole))) {
+      return true;
+    }
+
     if (allowedRoles.includes(normalizedRole)) {
       return true;
     }
