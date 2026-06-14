@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ProfileSummary } from '../profiles/profile-summary.types';
 import { ServiceItemCard, ServiceSearchResult } from './service-item.types';
 
 type DemoServiceItem = Omit<ServiceItemCard, 'assets'> & {
   assets?: ServiceItemCard['assets'];
+  targetRoles?: string[];
   searchTerms: string[];
 };
 
@@ -176,9 +178,9 @@ export const demoItems: DemoServiceItem[] = [
 export class ServiceItemsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async search(query: string): Promise<ServiceSearchResult> {
+  async search(query: string, profile?: ProfileSummary): Promise<ServiceSearchResult> {
     const normalizedQuery = query.trim().toLowerCase();
-    const searchableItems = await this.getSearchableItems();
+    const searchableItems = this.filterByProfile(await this.getSearchableItems(), profile);
 
     if (!normalizedQuery) {
       return { items: searchableItems.slice(0, 3).map((item) => this.toCard(item)), matchedBy: 'mock' };
@@ -191,16 +193,17 @@ export class ServiceItemsService {
       }))
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score);
-    const resultItems = scoredItems.map(({ item }) => this.toCard(item));
+    const resultItems = this.compactScoredItems(scoredItems).map(({ item }) => this.toCard(item));
 
     return {
-      items: resultItems.slice(0, 5),
+      items: resultItems,
       matchedBy: resultItems.length > 0 ? 'keyword' : 'mock',
     };
   }
 
-  async recommendForProfile(tags: string[]): Promise<ServiceItemCard[]> {
-    const items = await this.getSearchableItems();
+  async recommendForProfile(profile: ProfileSummary): Promise<ServiceItemCard[]> {
+    const items = this.filterByProfile(await this.getSearchableItems(), profile);
+    const tags = profile.tags;
 
     if (tags.includes('毕业生') || tags.includes('关注考研')) {
       return items.filter((item) => item.id === 'transcript-print').map((item) => this.toCard(item));
@@ -211,13 +214,67 @@ export class ServiceItemsService {
 
   private scoreItem(item: DemoServiceItem, query: string): number {
     const terms = [item.title, item.category, ...item.searchTerms].map((term) => term.toLowerCase());
+    let baseScore = 0;
+    const title = item.title.toLowerCase();
+    const category = item.category.toLowerCase();
+
+    if (query === title || query.includes(title)) {
+      baseScore += 100;
+    } else if (title.includes(query)) {
+      baseScore += 70;
+    }
+
+    if (query.includes(category) || category.includes(query)) {
+      baseScore += 18;
+    }
+
     return terms.reduce((score, term) => {
       if (query.includes(term) || term.includes(query)) {
         return score + term.length + 5;
       }
 
       return score;
-    }, 0);
+    }, baseScore);
+  }
+
+  private compactScoredItems<T extends { score: number }>(scoredItems: T[]): T[] {
+    if (scoredItems.length <= 1) {
+      return scoredItems;
+    }
+
+    const [top, second] = scoredItems;
+    if (top.score >= 35 && top.score >= second.score * 1.35) {
+      return [top];
+    }
+
+    return scoredItems.slice(0, 3);
+  }
+
+  private filterByProfile(items: DemoServiceItem[], profile?: ProfileSummary): DemoServiceItem[] {
+    if (!profile?.role) {
+      return items;
+    }
+
+    return items.filter((item) => this.isRoleAllowed(item.targetRoles, profile.role));
+  }
+
+  private isRoleAllowed(targetRoles?: string[], role?: string): boolean {
+    if (!targetRoles?.length || !role) {
+      return true;
+    }
+
+    const normalizedRole = role.trim();
+    const allowedRoles = targetRoles.map((targetRole) => targetRole.trim());
+
+    if (allowedRoles.includes(normalizedRole)) {
+      return true;
+    }
+
+    if (normalizedRole === '教师' && allowedRoles.includes('教职工')) {
+      return true;
+    }
+
+    return false;
   }
 
   private toCard(item: DemoServiceItem): ServiceItemCard {
@@ -250,6 +307,7 @@ export class ServiceItemsService {
         category: item.category,
         description: item.description ?? undefined,
         handlerCount: item.handlerCount ?? undefined,
+        targetRoles: this.toStringArray(item.targetRoles),
         entryUrl: item.entryUrl,
         department: item.department ?? undefined,
         contactPerson: item.contactPerson ?? undefined,

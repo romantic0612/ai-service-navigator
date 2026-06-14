@@ -20,11 +20,11 @@ export class AssistantService {
     const searchQuery = [message, difyIntent?.intent, difyIntent?.category, ...(difyIntent?.keywords ?? [])]
       .filter(Boolean)
       .join(' ');
-    const searchResult = await this.serviceItemsService.search(searchQuery);
+    const searchResult = await this.serviceItemsService.search(searchQuery, profile);
     const serviceCards =
       searchResult.items.length > 0
         ? searchResult.items
-        : await this.serviceItemsService.recommendForProfile(profile.tags);
+        : await this.serviceItemsService.recommendForProfile(profile);
 
     const profileUpdateCandidates = this.mergeProfileCandidates([
       ...this.extractProfileUpdateCandidates(message),
