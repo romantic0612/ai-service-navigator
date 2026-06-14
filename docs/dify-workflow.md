@@ -9,7 +9,7 @@ POST {DIFY_API_BASE_URL}/chat-messages
 示例：
 
 ```bash
-curl -X POST 'http://36.138.68.127/v1/chat-messages' \
+curl -X POST 'http://36.138.68.127:8001/v1/chat-messages' \
   --header 'Authorization: Bearer {api_key}' \
   --header 'Content-Type: application/json' \
   --data-raw '{
@@ -27,11 +27,25 @@ curl -X POST 'http://36.138.68.127/v1/chat-messages' \
 ## 环境变量
 
 ```env
-DIFY_API_BASE_URL="http://36.138.68.127/v1"
+DIFY_API_BASE_URL="http://36.138.68.127:8001"
 DIFY_INTENT_API_KEY="Dify Chat App API Key"
+DIFY_APP_ID="可选，记录 Dify 应用 ID"
+DIFY_TIMEOUT_MS=15000
 ```
 
 如果暂时只填 `DIFY_API_KEY`，后端也会把它当作意图识别 Key 使用。
+
+后端会自动把 `DIFY_API_BASE_URL` 规范成 `/v1` 接口地址，所以可以填：
+
+```env
+DIFY_API_BASE_URL="http://36.138.68.127:8001"
+```
+
+最终请求会发到：
+
+```text
+http://36.138.68.127:8001/v1/chat-messages
+```
 
 ## Chatflow 怎么搭
 

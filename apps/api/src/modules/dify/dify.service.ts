@@ -54,9 +54,13 @@ export class DifyService {
     query: string,
     profile: ProfileSummary,
   ): Promise<DifyChatMessageResponse> {
-    const baseUrl = this.configService.get<string>('DIFY_API_BASE_URL') ?? 'https://api.dify.ai/v1';
-    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat-messages`, {
+    const baseUrl = this.normalizeBaseUrl(this.configService.get<string>('DIFY_API_BASE_URL') ?? 'https://api.dify.ai/v1');
+    const controller = new AbortController();
+    const timeoutMs = Number(this.configService.get<string>('DIFY_TIMEOUT_MS') ?? 15000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch(`${baseUrl}/chat-messages`, {
       method: 'POST',
+      signal: controller.signal,
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
@@ -71,7 +75,7 @@ export class DifyService {
         user: profile.userId || 'ai-service-navigator',
         files: [],
       }),
-    });
+    }).finally(() => clearTimeout(timeout));
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -82,6 +86,11 @@ export class DifyService {
 
   private getIntentApiKey(): string | undefined {
     return this.configService.get<string>('DIFY_INTENT_API_KEY') || this.configService.get<string>('DIFY_API_KEY');
+  }
+
+  private normalizeBaseUrl(baseUrl: string): string {
+    const trimmed = baseUrl.replace(/\/$/, '');
+    return trimmed.endsWith('/v1') ? trimmed : `${trimmed}/v1`;
   }
 
   private toOptionalString(value: unknown): string | undefined {

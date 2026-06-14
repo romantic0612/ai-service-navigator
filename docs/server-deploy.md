@@ -52,6 +52,7 @@ API_PUBLIC_PORT=3000
 DIFY_API_BASE_URL="https://api.dify.ai/v1"
 DIFY_API_KEY=""
 DIFY_INTENT_API_KEY=""
+DIFY_APP_ID=""
 
 OAUTH_AUTH_SERVER="https://ids.ahau.edu.cn/cas/oauth2.0"
 OAUTH_CLIENT_ID="xgaigc"

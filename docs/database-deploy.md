@@ -97,7 +97,7 @@ Dify 在：
 API 服务器 `.env` 中设置：
 
 ```env
-DIFY_API_BASE_URL="http://36.138.68.127:端口/v1"
+DIFY_API_BASE_URL="http://36.138.68.127:8001"
 DIFY_INTENT_API_KEY="你的 Dify Workflow API Key"
 ```
 
