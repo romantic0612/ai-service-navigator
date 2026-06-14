@@ -85,6 +85,7 @@ model UserMemory {
 
   @@index([userId, memoryType])
   @@index([userId, memoryKey])
+  @@unique([userId, memoryKey, memoryValue])
 }
 
 model ServiceItem {

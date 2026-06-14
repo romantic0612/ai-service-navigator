@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OAuthProfileDto } from './oauth-profile.dto';
 import { ProfileSummary } from './profile-summary.types';
+import { SaveMemoryDto } from './save-memory.dto';
 
 export type NormalizedOAuthProfile = {
   userId: string;
@@ -125,6 +126,90 @@ export class ProfilesService {
     });
 
     return profile;
+  }
+
+  async saveConfirmedMemory(userId: string, dto: SaveMemoryDto) {
+    try {
+      await this.ensureUserProfile(userId);
+      const existingMemory = await (this.prisma.userMemory as any).findFirst({
+        where: {
+          userId,
+          memoryKey: dto.key,
+          memoryValue: dto.value,
+        },
+      });
+      const data = {
+        userId,
+        memoryType: 'preference',
+        memoryKey: dto.key,
+        memoryValue: dto.value,
+        confidence: dto.confidence ?? 1,
+        source: 'USER_CONFIRMED',
+        sensitivity: this.toPrismaSensitivity(dto.sensitivity),
+      };
+      const memory = existingMemory
+        ? await (this.prisma.userMemory as any).update({
+            where: { id: existingMemory.id },
+            data: {
+              confidence: data.confidence,
+              source: data.source,
+              sensitivity: data.sensitivity,
+            },
+          })
+        : await (this.prisma.userMemory as any).create({
+            data: {
+              ...data,
+            },
+          });
+
+      return {
+        saved: true,
+        memory,
+      };
+    } catch {
+      return {
+        saved: false,
+        reason: 'database_unavailable',
+      };
+    }
+  }
+
+  async recordAskEvent(userId: string, message: string) {
+    try {
+      await this.ensureUserProfile(userId);
+      await this.prisma.userEvent.create({
+        data: {
+          userId,
+          eventType: 'ask',
+          queryText: message,
+        },
+      });
+    } catch {
+      // The assistant remains usable in local mock mode when MySQL is not running.
+    }
+  }
+
+  private async ensureUserProfile(userId: string) {
+    await this.prisma.userProfile.upsert({
+      where: { userId },
+      create: {
+        userId,
+        source: 'mock',
+      },
+      update: {},
+    });
+  }
+
+  private toPrismaSensitivity(value?: 'low' | 'medium' | 'high') {
+    if (value === 'high') {
+      return 'HIGH';
+    }
+
+    if (value === 'medium') {
+      return 'MEDIUM';
+    }
+
+    return 'LOW';
   }
 
   private getFallbackSummary(userId: string): ProfileSummary {

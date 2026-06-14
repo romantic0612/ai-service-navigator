@@ -5,6 +5,7 @@
   "scripts": {
     "start": "nest start",
     "start:dev": "nest start --watch",
+    "prebuild": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "nest build",
     "lint": "eslint \"src/**/*.ts\"",
     "prisma:generate": "prisma generate",

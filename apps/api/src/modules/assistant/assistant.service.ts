@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { DifyService } from '../dify/dify.service';
 import { ProfilesService } from '../profiles/profiles.service';
 import { ServiceItemsService } from '../services/service-items.service';
 import { AssistantReply, ProfileUpdateCandidate } from './assistant.types';
@@ -8,17 +9,27 @@ export class AssistantService {
   constructor(
     private readonly profilesService: ProfilesService,
     private readonly serviceItemsService: ServiceItemsService,
+    private readonly difyService: DifyService,
   ) {}
 
   async reply(userId: string, message: string): Promise<AssistantReply> {
     const profile = await this.profilesService.getSummary(userId);
-    const searchResult = await this.serviceItemsService.search(message);
+    await this.profilesService.recordAskEvent(userId, message);
+
+    const difyIntent = await this.difyService.recognizeIntent(message, profile);
+    const searchQuery = [message, difyIntent?.intent, difyIntent?.category, ...(difyIntent?.keywords ?? [])]
+      .filter(Boolean)
+      .join(' ');
+    const searchResult = await this.serviceItemsService.search(searchQuery);
     const serviceCards =
       searchResult.items.length > 0
         ? searchResult.items
         : await this.serviceItemsService.recommendForProfile(profile.tags);
 
-    const profileUpdateCandidates = this.extractProfileUpdateCandidates(message);
+    const profileUpdateCandidates = this.mergeProfileCandidates([
+      ...this.extractProfileUpdateCandidates(message),
+      ...(difyIntent?.profileUpdateCandidates ?? []),
+    ]);
 
     if (serviceCards.length === 0) {
       return {
@@ -30,10 +41,27 @@ export class AssistantService {
 
     return {
       action: 'recommend_service',
-      message: `我先按你的情况找到了 ${serviceCards.length} 个可能相关的办理事项，入口和流程以卡片为准。`,
+      message: this.buildReplyMessage(serviceCards.length, Boolean(difyIntent?.intent), difyIntent?.intent),
       serviceCards,
       profileUpdateCandidates,
     };
+  }
+
+  private buildReplyMessage(count: number, usedDify: boolean, intent?: string): string {
+    if (usedDify && intent) {
+      return `我理解你想办理“${intent}”相关事项，先找到了 ${count} 个可靠入口，入口和流程以卡片为准。`;
+    }
+
+    return `我先按你的情况找到了 ${count} 个可能相关的办理事项，入口和流程以卡片为准。`;
+  }
+
+  private mergeProfileCandidates(candidates: ProfileUpdateCandidate[]): ProfileUpdateCandidate[] {
+    const result = new Map<string, ProfileUpdateCandidate>();
+    for (const candidate of candidates) {
+      result.set(`${candidate.key}:${candidate.value}`, candidate);
+    }
+
+    return [...result.values()];
   }
 
   private extractProfileUpdateCandidates(message: string): ProfileUpdateCandidate[] {

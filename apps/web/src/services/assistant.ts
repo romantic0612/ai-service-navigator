@@ -44,3 +44,16 @@ export async function sendAssistantMessage(message: string, userId = 'demo-user'
 
   return response.data;
 }
+
+export async function saveProfileMemory(candidate: ProfileUpdateCandidate, userId = 'demo-user') {
+  const response = await axios.post<{ saved: boolean; reason?: string }>(`${apiBaseUrl}/profiles/${userId}/memories`, {
+    key: candidate.key,
+    value: candidate.value,
+    confidence: candidate.confidence,
+    sensitivity: candidate.sensitivity,
+    needConfirm: candidate.needConfirm,
+    reason: candidate.reason,
+  });
+
+  return response.data;
+}

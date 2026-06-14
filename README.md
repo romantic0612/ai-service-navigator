@@ -141,6 +141,12 @@ GET /service-items/search?q=成绩单
 GET /profiles/demo-user/summary
 ```
 
+### 保存用户确认的画像记忆
+
+```http
+POST /profiles/demo-user/memories
+```
+
 ### 获取统一认证登录地址
 
 ```http
@@ -158,8 +164,6 @@ GET /health
 ```http
 GET /callback?code=xxx&state=xxx
 ```
-
-当前先接住学校回调。确认 CAS OAuth2 的 token 地址和用户信息接口后，会在这里完成换 token、拉取用户信息、写入数据库。
 
 现在已按学校 CAS OAuth2 文档实现：
 
@@ -182,7 +186,8 @@ MySQL 接通后，会把标准化用户画像写入 `user_profiles`。
 - 已搭建 NestJS 后端骨架
 - 已搭建 Vue3 + Vite + Vant H5 手机端首页
 - 已设计 OAuth 画像、用户偏好、用户记忆、办事事项、推荐规则等数据模型
-- 已实现 mock 版 AI 办事接口
+- 已实现 AI 办事接口，支持 Dify 意图识别配置；未配置 Dify 时使用本地检索兜底
+- 已实现用户确认画像记忆保存接口
 - 已记录安徽农业大学 OAuth 返回字段样例
 - 已加入第一条真实办事事项：书记校长信箱
 - 已验证 `npm run build:api` 可以通过
@@ -190,7 +195,7 @@ MySQL 接通后，会把标准化用户画像写入 `user_profiles`。
 
 ## 下一步
 
-1. 接入真实 MySQL，把 mock 办事事项替换成数据库数据。
-2. 支持从 Excel / CSV / 飞书表格导入第一批事项。
-3. 接入 Dify 工作流做意图识别和画像候选提取。
-4. 开始做手机端 AI 对话首页。
+1. 启动 MySQL 并执行 Prisma 迁移和 seed。
+2. 在 Dify 建办事意图识别 Workflow，并配置 `DIFY_INTENT_API_KEY`。
+3. 支持从 Excel / CSV / 飞书表格导入第一批事项。
+4. 接真实 OAuth 后在服务器联调登录闭环。

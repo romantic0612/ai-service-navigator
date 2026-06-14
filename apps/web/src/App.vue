@@ -2,7 +2,12 @@
 import { Bot, Check, Send, Sparkles, X } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import ServiceCard from './components/ServiceCard.vue';
-import { sendAssistantMessage, type AssistantReply, type ProfileUpdateCandidate } from './services/assistant';
+import {
+  saveProfileMemory,
+  sendAssistantMessage,
+  type AssistantReply,
+  type ProfileUpdateCandidate,
+} from './services/assistant';
 
 type ChatMessage = {
   id: number;
@@ -73,7 +78,8 @@ function candidateKey(candidate: ProfileUpdateCandidate) {
   return `${candidate.key}:${candidate.value}`;
 }
 
-function rememberCandidate(candidate: ProfileUpdateCandidate) {
+async function rememberCandidate(candidate: ProfileUpdateCandidate) {
+  await saveProfileMemory(candidate);
   savedCandidates.value.push(candidateKey(candidate));
 }
 
