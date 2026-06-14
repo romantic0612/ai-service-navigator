@@ -1,4 +1,4 @@
-import { BadGatewayException, Injectable } from '@nestjs/common';
+import { BadGatewayException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OAuthProfileDto } from '../profiles/oauth-profile.dto';
 
@@ -9,6 +9,8 @@ type AccessTokenResponse = {
 
 @Injectable()
 export class OAuthClientService {
+  private readonly logger = new Logger(OAuthClientService.name);
+
   constructor(private readonly configService: ConfigService) {}
 
   async exchangeCodeForToken(code: string): Promise<AccessTokenResponse> {
@@ -22,6 +24,8 @@ export class OAuthClientService {
 
     const response = await fetch(url);
     if (!response.ok) {
+      const errorBody = await response.text();
+      this.logger.error(`OAuth accessToken request failed: ${response.status}; body=${errorBody}`);
       throw new BadGatewayException(`OAuth accessToken request failed: ${response.status}`);
     }
 
@@ -43,6 +47,8 @@ export class OAuthClientService {
 
     const response = await fetch(url);
     if (!response.ok) {
+      const errorBody = await response.text();
+      this.logger.error(`OAuth profile request failed: ${response.status}; body=${errorBody}`);
       throw new BadGatewayException(`OAuth profile request failed: ${response.status}`);
     }
 
