@@ -27,7 +27,9 @@ https://xgaigc.ahau.edu.cn
 当前服务器 IP：
 
 ```text
-210.45.177.21
+API/H5/OAuth 入口：210.45.177.21
+MySQL：114.213.146.102
+Dify：36.136.68.127
 ```
 
 数据库默认：
@@ -35,6 +37,12 @@ https://xgaigc.ahau.edu.cn
 ```text
 MYSQL_DATABASE=ai_service_navigator
 MYSQL_USER=navigator
+```
+
+数据库建表 SQL：
+
+```text
+docs/mysql-schema.sql
 ```
 
 ## 启动后端

@@ -5,7 +5,9 @@
 当前信息：
 
 ```text
-服务器 IP：210.45.177.21
+API/H5/OAuth 入口服务器 IP：210.45.177.21
+MySQL 服务器 IP：114.213.146.102
+Dify 服务器 IP：36.136.68.127
 正式域名：https://xgaigc.ahau.edu.cn
 移动端形式：H5
 建议服务器目录：/opt/ai-service-navigator
@@ -16,11 +18,15 @@
 ```text
 GitHub 仓库
     ↓ git pull
-/opt/ai-service-navigator
+/opt/ai-service-navigator on 210.45.177.21
     ↓ docker compose
-API + MySQL + Redis
+API + Web + Redis
     ↓ Nginx 反向代理
 https://xgaigc.ahau.edu.cn
+    ↓
+MySQL：114.213.146.102
+    ↓
+Dify：36.136.68.127
 ```
 
 ## 原则
@@ -52,24 +58,24 @@ OAUTH_REDIRECT_URI="https://xgaigc.ahau.edu.cn/callback"
 OAUTH_SCOPE="cas_get_userInfo"
 ```
 
-`docker-compose.yml` 会自动给 API 容器生成内部数据库连接：
+如果 MySQL 放在 114.213.146.102，API 服务器上建议直接配置：
 
-```text
-mysql://navigator:密码@mysql:3306/ai_service_navigator
+```env
+DATABASE_URL="mysql://navigator:密码@114.213.146.102:3306/ai_service_navigator"
 ```
 
 ## MySQL 与 Navicat
 
-第一阶段为了方便 Navicat 连接，Docker 会把 MySQL 暴露到服务器 `3306` 端口。
+如果 MySQL 放在独立服务器 `114.213.146.102`：
 
 Navicat 连接信息：
 
 ```text
-主机：210.45.177.21
+主机：114.213.146.102
 端口：3306
 数据库：ai_service_navigator
 用户名：navigator
-密码：服务器 .env 里的 MYSQL_PASSWORD
+密码：MySQL 服务器设置的 navigator 密码
 ```
 
 更安全的方式是服务器防火墙只允许你的校园网 IP 访问 `3306`，或者后续改成 SSH 隧道连接。

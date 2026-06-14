@@ -28,10 +28,9 @@ services:
     container_name: ai-service-navigator-api
     restart: unless-stopped
     depends_on:
-      - mysql
       - redis
     environment:
-      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      DATABASE_URL: ${DATABASE_URL:-mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}}
       DIFY_API_BASE_URL: ${DIFY_API_BASE_URL}
       DIFY_API_KEY: ${DIFY_API_KEY}
       DIFY_INTENT_API_KEY: ${DIFY_INTENT_API_KEY}
