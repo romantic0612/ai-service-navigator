@@ -56,6 +56,29 @@ copy apps\api\.env.example apps\api\.env
 
 然后修改 `apps/api/.env` 中的数据库地址和 Dify 配置。
 
+## 启动 H5
+
+先启动后端 API，再启动 H5：
+
+```bash
+npm run dev:api
+npm run dev:web
+```
+
+本地访问：
+
+```text
+http://localhost:5173
+```
+
+H5 开发环境默认请求：
+
+```text
+http://localhost:3100
+```
+
+生产环境默认使用同域名请求后端，可通过 `VITE_API_BASE_URL` 覆盖。
+
 ## 初始化数据库
 
 如果只想先跑接口 demo，可以暂时不启动 MySQL，接口会使用内置 mock 数据兜底。
@@ -157,6 +180,7 @@ MySQL 接通后，会把标准化用户画像写入 `user_profiles`。
 ## 当前进度
 
 - 已搭建 NestJS 后端骨架
+- 已搭建 Vue3 + Vite + Vant H5 手机端首页
 - 已设计 OAuth 画像、用户偏好、用户记忆、办事事项、推荐规则等数据模型
 - 已实现 mock 版 AI 办事接口
 - 已记录安徽农业大学 OAuth 返回字段样例

@@ -43,5 +43,18 @@ services:
     ports:
       - "${API_PUBLIC_PORT:-3000}:3000"
 
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${WEB_API_BASE_URL:-}
+    container_name: ai-service-navigator-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PUBLIC_PORT:-8080}:80"
+
 volumes:
   mysql_data:
