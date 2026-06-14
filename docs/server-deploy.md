@@ -89,7 +89,35 @@ Navicat 连接信息：
 
 更安全的方式是服务器防火墙只允许你的校园网 IP 访问 `3306`，或者后续改成 SSH 隧道连接。
 
-## Nginx
+## 没有宿主机 Nginx 的情况
+
+如果服务器没有安装 Nginx，也可以直接让 `web` 容器承担入口网关：
+
+```text
+https://xgaigc.ahau.edu.cn -> 210.45.177.21:7997 -> web 容器
+```
+
+`web` 容器里的 Nginx 已经配置了 API 分流：
+
+```text
+/                 -> H5 前端
+/assistant        -> api:3000
+/profiles         -> api:3000
+/service-items    -> api:3000
+/auth             -> api:3000
+/callback         -> api:3000
+/health           -> api:3000
+```
+
+这种方式下 `.env` 建议：
+
+```env
+WEB_PUBLIC_PORT=7997
+WEB_API_BASE_URL=
+API_PUBLIC_PORT=3000
+```
+
+## 有宿主机 Nginx 的情况
 
 如果服务器已有 Nginx，可把域名反代到 API：
 

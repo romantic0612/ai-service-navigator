@@ -95,6 +95,19 @@ http://localhost:3100
 
 生产环境默认使用同域名请求后端，可通过 `VITE_API_BASE_URL` 覆盖。
 
+Docker 部署时，`web` 容器会代理以下 API 路径到 `api` 容器：
+
+```text
+/assistant
+/profiles
+/service-items
+/auth
+/callback
+/health
+```
+
+因此没有宿主机 Nginx 时，也可以让域名直接指向 `WEB_PUBLIC_PORT`。
+
 ## 初始化数据库
 
 如果只想先跑接口 demo，可以暂时不启动 MySQL，接口会使用内置 mock 数据兜底。
