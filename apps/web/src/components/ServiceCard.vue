@@ -12,6 +12,10 @@ const expanded = ref(false);
 function openService() {
   window.location.href = props.card.entryUrl;
 }
+
+function isImageAsset(assetType: string) {
+  return ['image', 'qrcode'].includes(assetType);
+}
 </script>
 
 <template>
@@ -70,6 +74,20 @@ function openService() {
       <section v-if="card.notice">
         <h4>注意事项</h4>
         <p>{{ card.notice }}</p>
+      </section>
+      <section v-if="card.assets.length">
+        <h4>附件</h4>
+        <div class="service-assets">
+          <template v-for="asset in card.assets" :key="asset.id">
+            <figure v-if="isImageAsset(asset.assetType)" class="service-asset-image">
+              <img :src="asset.url" :alt="asset.altText || asset.title || card.title" loading="lazy" />
+              <figcaption v-if="asset.title">{{ asset.title }}</figcaption>
+            </figure>
+            <a v-else class="service-asset-link" :href="asset.url" target="_blank" rel="noopener">
+              {{ asset.title || '查看附件' }}
+            </a>
+          </template>
+        </div>
       </section>
     </div>
   </article>

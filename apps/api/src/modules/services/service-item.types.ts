@@ -1,3 +1,11 @@
+export type ServiceItemAssetCard = {
+  id: string;
+  assetType: string;
+  title?: string;
+  url: string;
+  altText?: string;
+};
+
 export type ServiceItemCard = {
   id: string;
   title: string;
@@ -13,6 +21,7 @@ export type ServiceItemCard = {
   materials: string[];
   processSteps: string[];
   notice?: string;
+  assets: ServiceItemAssetCard[];
   lastVerifiedAt?: string;
 };
 

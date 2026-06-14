@@ -2,6 +2,14 @@ import axios from 'axios';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? 'http://localhost:3100' : '');
 
+export type ServiceAsset = {
+  id: string;
+  assetType: string;
+  title?: string;
+  url: string;
+  altText?: string;
+};
+
 export type ServiceCard = {
   id: string;
   title: string;
@@ -15,6 +23,7 @@ export type ServiceCard = {
   materials: string[];
   processSteps: string[];
   notice?: string;
+  assets: ServiceAsset[];
   lastVerifiedAt?: string;
 };
 

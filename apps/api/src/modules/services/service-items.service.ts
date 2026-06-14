@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ServiceItemCard, ServiceSearchResult } from './service-item.types';
 
-type DemoServiceItem = ServiceItemCard & {
+type DemoServiceItem = Omit<ServiceItemCard, 'assets'> & {
+  assets?: ServiceItemCard['assets'];
   searchTerms: string[];
 };
 
@@ -221,13 +222,21 @@ export class ServiceItemsService {
 
   private toCard(item: DemoServiceItem): ServiceItemCard {
     const { searchTerms: _searchTerms, ...card } = item;
-    return card;
+    return {
+      ...card,
+      assets: card.assets ?? [],
+    };
   }
 
   private async getSearchableItems(): Promise<DemoServiceItem[]> {
     try {
       const serviceItems = await this.prisma.serviceItem.findMany({
         where: { status: 'ENABLED' },
+        include: {
+          assets: {
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
         orderBy: { updatedAt: 'desc' },
       });
 
@@ -250,6 +259,15 @@ export class ServiceItemsService {
         materials: this.toStringArray(item.materials),
         processSteps: this.toStringArray(item.processSteps),
         notice: item.notice ?? undefined,
+        assets: Array.isArray(item.assets)
+          ? item.assets.map((asset: any) => ({
+              id: asset.id,
+              assetType: asset.assetType,
+              title: asset.title ?? undefined,
+              url: asset.url,
+              altText: asset.altText ?? undefined,
+            }))
+          : [],
         lastVerifiedAt: item.lastVerifiedAt?.toISOString().slice(0, 10),
         searchTerms: this.toStringArray(item.keywords),
       }));
