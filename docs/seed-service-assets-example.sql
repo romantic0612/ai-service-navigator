@@ -14,7 +14,7 @@ INSERT INTO `service_item_assets` (
   'online-interview-booth-reservation',
   'qrcode',
   '预约智慧面试间微信小程序二维码',
-  '/service-assets/online-interview-booth-qrcode.jpg',
+  '/service-assets/online-interview-booth-qrcode.png',
   '预约智慧面试间微信小程序二维码和使用流程说明',
   1
 )
