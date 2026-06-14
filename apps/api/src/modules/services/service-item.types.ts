@@ -12,6 +12,7 @@ export type ServiceItemCard = {
   category: string;
   description?: string;
   handlerCount?: number;
+  targetRoles: string[];
   entryUrl: string;
   department?: string;
   contactPerson?: string;

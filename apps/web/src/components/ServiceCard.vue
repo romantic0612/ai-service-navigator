@@ -84,6 +84,10 @@ function linkParts(text?: string): TextPart[] {
     </p>
 
     <div class="service-card__meta">
+      <div v-if="card.targetRoles.length">
+        <UserRound :size="15" />
+        <span>面向对象：{{ card.targetRoles.join('、') }}</span>
+      </div>
       <div v-if="card.department">
         <UserRound :size="15" />
         <span>{{ card.department }}</span>

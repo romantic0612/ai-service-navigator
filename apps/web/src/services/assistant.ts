@@ -15,6 +15,7 @@ export type ServiceCard = {
   title: string;
   category: string;
   description?: string;
+  targetRoles: string[];
   entryUrl: string;
   department?: string;
   contactPerson?: string;
@@ -50,7 +51,7 @@ export type ProfileSummary = {
 };
 
 export type AssistantReply = {
-  action: 'clarify' | 'recommend_service' | 'no_reliable_result';
+  action: 'clarify' | 'recommend_service' | 'role_mismatch' | 'no_reliable_result';
   message: string;
   clarifyQuestion?: string;
   clarifyOptions?: string[];

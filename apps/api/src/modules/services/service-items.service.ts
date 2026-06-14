@@ -3,9 +3,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ProfileSummary } from '../profiles/profile-summary.types';
 import { ServiceItemCard, ServiceSearchResult } from './service-item.types';
 
-type DemoServiceItem = Omit<ServiceItemCard, 'assets'> & {
+type DemoServiceItem = Omit<ServiceItemCard, 'assets' | 'targetRoles'> & {
   assets?: ServiceItemCard['assets'];
-  targetRoles?: string[];
+  targetRoles?: ServiceItemCard['targetRoles'];
   searchTerms: string[];
 };
 
@@ -178,9 +178,14 @@ export const demoItems: DemoServiceItem[] = [
 export class ServiceItemsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async search(query: string, profile?: ProfileSummary): Promise<ServiceSearchResult> {
+  async search(
+    query: string,
+    profile?: ProfileSummary,
+    options: { ignoreRoleFilter?: boolean } = {},
+  ): Promise<ServiceSearchResult> {
     const normalizedQuery = query.trim().toLowerCase();
-    const searchableItems = this.filterByProfile(await this.getSearchableItems(), profile);
+    const allItems = await this.getSearchableItems();
+    const searchableItems = options.ignoreRoleFilter ? allItems : this.filterByProfile(allItems, profile);
 
     if (!normalizedQuery) {
       return { items: searchableItems.slice(0, 3).map((item) => this.toCard(item)), matchedBy: 'mock' };
@@ -282,6 +287,7 @@ export class ServiceItemsService {
     return {
       ...card,
       assets: card.assets ?? [],
+      targetRoles: card.targetRoles ?? [],
     };
   }
 
