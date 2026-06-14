@@ -19,6 +19,10 @@ function openService() {
   window.location.href = props.card.entryUrl;
 }
 
+function openUrl(url: string) {
+  window.location.href = url;
+}
+
 function isImageAsset(assetType: string) {
   return ['image', 'qrcode'].includes(assetType);
 }
@@ -72,7 +76,7 @@ function linkParts(text?: string): TextPart[] {
 
     <p v-if="card.description" class="service-card__desc">
       <template v-for="(part, index) in linkParts(card.description)" :key="`${part.value}-${index}`">
-        <a v-if="part.type === 'link'" class="text-link" :href="part.value" target="_blank" rel="noopener">
+        <a v-if="part.type === 'link'" class="text-link" :href="part.value" @click.prevent="openUrl(part.value)">
           {{ part.value }}
         </a>
         <span v-else>{{ part.value }}</span>
@@ -111,7 +115,7 @@ function linkParts(text?: string): TextPart[] {
         <ul>
           <li v-for="material in card.materials" :key="material">
             <template v-for="(part, index) in linkParts(material)" :key="`${part.value}-${index}`">
-              <a v-if="part.type === 'link'" class="text-link" :href="part.value" target="_blank" rel="noopener">
+              <a v-if="part.type === 'link'" class="text-link" :href="part.value" @click.prevent="openUrl(part.value)">
                 {{ part.value }}
               </a>
               <span v-else>{{ part.value }}</span>
@@ -124,7 +128,7 @@ function linkParts(text?: string): TextPart[] {
         <ol>
           <li v-for="step in card.processSteps" :key="step">
             <template v-for="(part, index) in linkParts(step)" :key="`${part.value}-${index}`">
-              <a v-if="part.type === 'link'" class="text-link" :href="part.value" target="_blank" rel="noopener">
+              <a v-if="part.type === 'link'" class="text-link" :href="part.value" @click.prevent="openUrl(part.value)">
                 {{ part.value }}
               </a>
               <span v-else>{{ part.value }}</span>
@@ -136,7 +140,7 @@ function linkParts(text?: string): TextPart[] {
         <h4>注意事项</h4>
         <p>
           <template v-for="(part, index) in linkParts(card.notice)" :key="`${part.value}-${index}`">
-            <a v-if="part.type === 'link'" class="text-link" :href="part.value" target="_blank" rel="noopener">
+            <a v-if="part.type === 'link'" class="text-link" :href="part.value" @click.prevent="openUrl(part.value)">
               {{ part.value }}
             </a>
             <span v-else>{{ part.value }}</span>
@@ -151,7 +155,7 @@ function linkParts(text?: string): TextPart[] {
               <img :src="asset.url" :alt="asset.altText || asset.title || card.title" loading="lazy" />
               <figcaption v-if="asset.title">{{ asset.title }}</figcaption>
             </figure>
-            <a v-else class="service-asset-link" :href="asset.url" target="_blank" rel="noopener">
+            <a v-else class="service-asset-link" :href="asset.url" @click.prevent="openUrl(asset.url)">
               {{ asset.title || '查看相关链接' }}
             </a>
           </template>
