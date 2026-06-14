@@ -121,10 +121,27 @@ model ServiceItem {
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
   events UserEvent[]
+  assets ServiceItemAsset[]
 
   @@index([category])
   @@index([status])
   @@map("service_items")
+}
+
+model ServiceItemAsset {
+  id            String   @id @default(cuid())
+  serviceItemId String   @map("service_item_id")
+  assetType     String   @map("asset_type")
+  title         String?
+  url           String   @db.Text
+  altText       String?  @map("alt_text") @db.VarChar(500)
+  sortOrder     Int      @default(0) @map("sort_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  serviceItem ServiceItem @relation(fields: [serviceItemId], references: [id], onDelete: Cascade)
+
+  @@index([serviceItemId, sortOrder])
+  @@map("service_item_assets")
 }
 
 model UserEvent {
