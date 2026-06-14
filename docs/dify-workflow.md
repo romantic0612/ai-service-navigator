@@ -17,7 +17,7 @@ curl -X POST 'http://36.138.68.127:8001/v1/chat-messages' \
       "profile_summary": "{\"userId\":\"demo-user\",\"role\":\"本科生\",\"college\":\"人工智能学院\",\"tags\":[]}"
     },
     "query": "云盘怎么用",
-    "response_mode": "blocking",
+    "response_mode": "streaming",
     "conversation_id": "",
     "user": "demo-user",
     "files": []
@@ -106,9 +106,9 @@ profile_update_candidates 的格式：
 
 ## Dify 返回要求
 
-后端会读取 Dify 响应里的 `answer` 字段，并把它当 JSON 解析。
+后端会使用 `response_mode=streaming` 调用 Dify，并从 SSE 事件里的 `answer` 片段拼接最终文本，再把它当 JSON 解析。
 
-`answer` 必须是：
+最终拼接出的 `answer` 必须是：
 
 ```json
 {

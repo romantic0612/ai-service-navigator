@@ -8,6 +8,11 @@ type DifyChatMessageResponse = {
   conversation_id?: string;
 };
 
+type SseEvent = {
+  event?: string;
+  data?: Record<string, unknown>;
+};
+
 export type DifyIntentResult = {
   intent?: string;
   category?: string;
@@ -58,30 +63,39 @@ export class DifyService {
     const controller = new AbortController();
     const timeoutMs = Number(this.configService.get<string>('DIFY_TIMEOUT_MS') ?? 15000);
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    const response = await fetch(`${baseUrl}/chat-messages`, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        inputs: {
-          profile_summary: JSON.stringify(profile),
+    try {
+      const response = await fetch(`${baseUrl}/chat-messages`, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
         },
-        query,
-        response_mode: 'blocking',
-        conversation_id: '',
-        user: profile.userId || 'ai-service-navigator',
-        files: [],
-      }),
-    }).finally(() => clearTimeout(timeout));
+        body: JSON.stringify({
+          inputs: {
+            profile_summary: JSON.stringify(profile),
+          },
+          query,
+          response_mode: 'streaming',
+          conversation_id: '',
+          user: profile.userId || 'ai-service-navigator',
+          files: [],
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type') ?? '';
+      if (contentType.includes('text/event-stream')) {
+        return await this.readStreamingAnswer(response);
+      }
+
+      return (await response.json()) as DifyChatMessageResponse;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    return (await response.json()) as DifyChatMessageResponse;
   }
 
   private getIntentApiKey(): string | undefined {
@@ -170,6 +184,73 @@ export class DifyService {
     } catch {
       return null;
     }
+  }
+
+  private async readStreamingAnswer(response: Response): Promise<DifyChatMessageResponse> {
+    const body = response.body;
+    if (!body) {
+      return {};
+    }
+
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let answer = '';
+    let conversationId: string | undefined;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split(/\n\n/);
+      buffer = events.pop() ?? '';
+
+      for (const rawEvent of events) {
+        const event = this.parseSseEvent(rawEvent);
+        if (!event.data) {
+          continue;
+        }
+
+        conversationId = this.toOptionalString(event.data.conversation_id) ?? conversationId;
+        const eventAnswer = this.toOptionalString(event.data.answer);
+        if (eventAnswer) {
+          answer += eventAnswer;
+        }
+
+        if (event.event === 'message_end' || event.data.event === 'message_end') {
+          return { answer, conversation_id: conversationId };
+        }
+      }
+    }
+
+    return { answer, conversation_id: conversationId };
+  }
+
+  private parseSseEvent(rawEvent: string): SseEvent {
+    const result: SseEvent = {};
+    const dataLines: string[] = [];
+
+    for (const line of rawEvent.split(/\r?\n/)) {
+      if (line.startsWith('event:')) {
+        result.event = line.slice('event:'.length).trim();
+      }
+
+      if (line.startsWith('data:')) {
+        dataLines.push(line.slice('data:'.length).trim());
+      }
+    }
+
+    if (dataLines.length > 0) {
+      const parsed = this.parseJson(dataLines.join('\n'));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        result.data = parsed as Record<string, unknown>;
+      }
+    }
+
+    return result;
   }
 
   private parseAnswerJson(answer: unknown): Record<string, unknown> {
