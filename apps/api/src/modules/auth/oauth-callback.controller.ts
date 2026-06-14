@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Query, Req, Res } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Logger, Query, Req, Res } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ProfilesService } from '../profiles/profiles.service';
 import { OAuthClientService } from './oauth-client.service';
@@ -6,6 +6,8 @@ import { OAUTH_STATE_COOKIE, OAuthStateService } from './oauth-state.service';
 
 @Controller()
 export class OAuthCallbackController {
+  private readonly logger = new Logger(OAuthCallbackController.name);
+
   constructor(
     private readonly oauthClientService: OAuthClientService,
     private readonly oauthStateService: OAuthStateService,
@@ -27,11 +29,15 @@ export class OAuthCallbackController {
       throw new BadRequestException('Invalid or expired OAuth state');
     }
 
+    this.logger.log('OAuth callback state verified, exchanging code for token');
     const token = await this.oauthClientService.exchangeCodeForToken(code);
+    this.logger.log('OAuth access token exchanged, fetching profile');
     const profile = await this.oauthClientService.getProfile(token.access_token);
+    this.logger.log(`OAuth profile fetched for user ${profile.id}, writing profile`);
     const normalizedProfile = await this.profilesService.upsertOAuthProfile(profile);
     const redirectUrl = `/?userId=${encodeURIComponent(normalizedProfile.userId)}`;
 
+    this.logger.log(`OAuth profile stored for user ${normalizedProfile.userId}, redirecting to home`);
     response?.clearCookie(OAUTH_STATE_COOKIE, { path: '/' });
     return response?.redirect(redirectUrl);
   }
