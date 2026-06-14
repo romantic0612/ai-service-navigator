@@ -23,7 +23,7 @@ Dify：36.136.68.127
 建议：
 
 ```text
-数据库名：ai_service_navigator
+数据库名：aibs
 业务账号：navigator
 端口：3306
 字符集：utf8mb4
@@ -49,7 +49,7 @@ CHANGE_ME_STRONG_PASSWORD
 API 服务器 `210.45.177.21` 上的 `.env` 需要这样连接远程 MySQL：
 
 ```env
-DATABASE_URL="mysql://navigator:你的密码@114.213.146.102:3306/ai_service_navigator"
+DATABASE_URL="mysql://navigator:你的密码@114.213.146.102:3306/aibs"
 ```
 
 如果使用 `docker-compose.yml` 的 API 容器，也建议改成直接读取 `DATABASE_URL`，不要再默认拼容器内 MySQL 地址。
@@ -59,7 +59,7 @@ DATABASE_URL="mysql://navigator:你的密码@114.213.146.102:3306/ai_service_nav
 ```text
 主机：114.213.146.102
 端口：3306
-数据库：ai_service_navigator
+数据库：aibs
 用户名：navigator
 密码：你设置的密码
 ```

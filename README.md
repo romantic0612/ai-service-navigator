@@ -35,7 +35,7 @@ Dify：36.136.68.127
 数据库默认：
 
 ```text
-MYSQL_DATABASE=ai_service_navigator
+MYSQL_DATABASE=aibs
 MYSQL_USER=navigator
 ```
 

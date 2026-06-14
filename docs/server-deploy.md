@@ -40,7 +40,7 @@ Dify：36.136.68.127
 
 ```env
 MYSQL_ROOT_PASSWORD="请在服务器填写强密码"
-MYSQL_DATABASE="ai_service_navigator"
+MYSQL_DATABASE="aibs"
 MYSQL_USER="navigator"
 MYSQL_PASSWORD="请在服务器填写强密码"
 MYSQL_PUBLIC_PORT=3306
@@ -61,7 +61,7 @@ OAUTH_SCOPE="cas_get_userInfo"
 如果 MySQL 放在 114.213.146.102，API 服务器上建议直接配置：
 
 ```env
-DATABASE_URL="mysql://navigator:密码@114.213.146.102:3306/ai_service_navigator"
+DATABASE_URL="mysql://navigator:密码@114.213.146.102:3306/aibs"
 ```
 
 ## MySQL 与 Navicat
@@ -73,7 +73,7 @@ Navicat 连接信息：
 ```text
 主机：114.213.146.102
 端口：3306
-数据库：ai_service_navigator
+数据库：aibs
 用户名：navigator
 密码：MySQL 服务器设置的 navigator 密码
 ```

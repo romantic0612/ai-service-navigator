@@ -1,13 +1,13 @@
-CREATE DATABASE IF NOT EXISTS `ai_service_navigator`
+CREATE DATABASE IF NOT EXISTS `aibs`
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
 CREATE USER IF NOT EXISTS 'navigator'@'%' IDENTIFIED BY 'CHANGE_ME_STRONG_PASSWORD';
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES
-  ON `ai_service_navigator`.* TO 'navigator'@'%';
+  ON `aibs`.* TO 'navigator'@'%';
 FLUSH PRIVILEGES;
 
-USE `ai_service_navigator`;
+USE `aibs`;
 
 CREATE TABLE IF NOT EXISTS `user_profiles` (
   `id` VARCHAR(191) NOT NULL,

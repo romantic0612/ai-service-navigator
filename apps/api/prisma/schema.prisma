@@ -28,64 +28,69 @@ enum MemorySensitivity {
 
 model UserProfile {
   id            String   @id @default(cuid())
-  userId        String   @unique
+  userId        String   @unique @map("user_id")
   name          String?
   email         String?
   phone         String?
   gender        String?
   role          String?
-  groupName     String?
+  groupName     String?  @map("group_name")
   college       String?
   major         String?
   grade         String?
   campus        String?
-  className     String?
-  birthDate     DateTime?
-  studentStatus String?
-  oauthRaw      Json?
+  className     String?  @map("class_name")
+  birthDate     DateTime? @map("birth_date")
+  studentStatus String?  @map("student_status")
+  oauthRaw      Json?    @map("oauth_raw")
   source        String   @default("oauth")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   preference UserPreferenceProfile?
   memories   UserMemory[]
   events     UserEvent[]
+
+  @@map("user_profiles")
 }
 
 model UserPreferenceProfile {
   id               String   @id @default(cuid())
-  userId           String   @unique
-  dormArea         String?
+  userId           String   @unique @map("user_id")
+  dormArea         String?  @map("dorm_area")
   interests        Json?
-  examPlan         Json?
-  employmentStatus String?
-  financialAidNeed Boolean?
-  libraryUsage     Boolean?
-  customTags       Json?
-  updatedBy        String   @default("user")
-  updatedAt        DateTime @updatedAt
+  examPlan         Json?    @map("exam_plan")
+  employmentStatus String?  @map("employment_status")
+  financialAidNeed Boolean? @map("financial_aid_need")
+  libraryUsage     Boolean? @map("library_usage")
+  customTags       Json?    @map("custom_tags")
+  updatedBy        String   @default("user") @map("updated_by")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   user UserProfile @relation(fields: [userId], references: [userId])
+
+  @@map("user_preference_profiles")
 }
 
 model UserMemory {
   id          String            @id @default(cuid())
-  userId      String
-  memoryType  String
-  memoryKey   String
-  memoryValue String
+  userId      String            @map("user_id")
+  memoryType  String            @map("memory_type")
+  memoryKey   String            @map("memory_key")
+  memoryValue String            @map("memory_value")
   confidence  Float             @default(1)
   source      MemorySource
   sensitivity MemorySensitivity @default(LOW)
-  expiresAt   DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  expiresAt   DateTime?         @map("expires_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
 
   user UserProfile @relation(fields: [userId], references: [userId])
 
   @@index([userId, memoryType])
   @@index([userId, memoryKey])
   @@unique([userId, memoryKey, memoryValue])
+  @@map("user_memories")
 }
 
 model ServiceItem {
@@ -93,61 +98,64 @@ model ServiceItem {
   title          String
   category       String
   description    String?       @db.Text
-  handlerCount   Int?
-  targetRoles    Json?
-  targetGrades   Json?
-  targetColleges Json?
-  targetCampuses Json?
-  entryUrl       String        @db.Text
+  handlerCount   Int?          @map("handler_count")
+  targetRoles    Json?         @map("target_roles")
+  targetGrades   Json?         @map("target_grades")
+  targetColleges Json?         @map("target_colleges")
+  targetCampuses Json?         @map("target_campuses")
+  entryUrl       String        @db.Text @map("entry_url")
   department     String?
-  contactPerson  String?
-  contactPhone   String?
-  serviceTime    String?
+  contactPerson  String?       @map("contact_person")
+  contactPhone   String?       @map("contact_phone")
+  serviceTime    String?       @map("service_time")
   basis          String?       @db.Text
   materials      Json?
-  processSteps   Json?
+  processSteps   Json?         @map("process_steps")
   notice         String?       @db.Text
   keywords       Json?
   faq            Json?
   status         ServiceStatus @default(DRAFT)
-  sourceUrl      String?       @db.Text
-  lastVerifiedAt DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  sourceUrl      String?       @db.Text @map("source_url")
+  lastVerifiedAt DateTime?     @map("last_verified_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
 
   events UserEvent[]
 
   @@index([category])
   @@index([status])
+  @@map("service_items")
 }
 
 model UserEvent {
   id            String   @id @default(cuid())
-  userId        String
-  eventType     String
-  serviceItemId String?
-  queryText     String?  @db.Text
+  userId        String   @map("user_id")
+  eventType     String   @map("event_type")
+  serviceItemId String?  @map("service_item_id")
+  queryText     String?  @db.Text @map("query_text")
   metadata      Json?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime @default(now()) @map("created_at")
 
   user        UserProfile  @relation(fields: [userId], references: [userId])
   serviceItem ServiceItem? @relation(fields: [serviceItemId], references: [id])
 
   @@index([userId, eventType])
   @@index([serviceItemId])
+  @@map("user_events")
 }
 
 model RecommendRule {
   id             String    @id @default(cuid())
   name           String
   conditions     Json
-  serviceItemIds Json
+  serviceItemIds Json      @map("service_item_ids")
   priority       Int       @default(0)
-  startTime      DateTime?
-  endTime        DateTime?
+  startTime      DateTime? @map("start_time")
+  endTime        DateTime? @map("end_time")
   enabled        Boolean   @default(true)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   @@index([enabled, priority])
+  @@map("recommend_rules")
 }
