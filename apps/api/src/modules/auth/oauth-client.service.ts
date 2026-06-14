@@ -29,7 +29,7 @@ export class OAuthClientService {
       throw new BadGatewayException(`OAuth accessToken request failed: ${response.status}`);
     }
 
-    const payload = (await response.json()) as Partial<AccessTokenResponse>;
+    const payload = await this.parseAccessTokenResponse(response);
     if (!payload.access_token) {
       throw new BadGatewayException('OAuth accessToken response missing access_token');
     }
@@ -53,6 +53,20 @@ export class OAuthClientService {
     }
 
     return (await response.json()) as OAuthProfileDto;
+  }
+
+  private async parseAccessTokenResponse(response: Response): Promise<Partial<AccessTokenResponse>> {
+    const text = await response.text();
+
+    try {
+      return JSON.parse(text) as Partial<AccessTokenResponse>;
+    } catch {
+      const params = new URLSearchParams(text);
+      return {
+        access_token: params.get('access_token') ?? undefined,
+        expires_in: params.get('expires_in') ? Number(params.get('expires_in')) : undefined,
+      };
+    }
   }
 
   private requireConfig(key: string): string {
