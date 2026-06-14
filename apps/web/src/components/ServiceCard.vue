@@ -76,7 +76,7 @@ function isImageAsset(assetType: string) {
         <p>{{ card.notice }}</p>
       </section>
       <section v-if="card.assets.length">
-        <h4>附件</h4>
+        <h4>附件/相关链接</h4>
         <div class="service-assets">
           <template v-for="asset in card.assets" :key="asset.id">
             <figure v-if="isImageAsset(asset.assetType)" class="service-asset-image">
@@ -84,7 +84,7 @@ function isImageAsset(assetType: string) {
               <figcaption v-if="asset.title">{{ asset.title }}</figcaption>
             </figure>
             <a v-else class="service-asset-link" :href="asset.url" target="_blank" rel="noopener">
-              {{ asset.title || '查看附件' }}
+              {{ asset.title || '查看相关链接' }}
             </a>
           </template>
         </div>
