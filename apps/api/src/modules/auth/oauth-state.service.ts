@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 
+export const OAUTH_STATE_COOKIE = 'aibs_oauth_state';
+
 type StateRecord = {
   state: string;
   expiresAt: number;
