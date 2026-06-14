@@ -1,0 +1,47 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: ai-service-navigator-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "${MYSQL_PUBLIC_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  redis:
+    image: redis:7
+    container_name: ai-service-navigator-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PUBLIC_PORT:-6379}:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: ai-service-navigator-api
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - redis
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      DIFY_API_BASE_URL: ${DIFY_API_BASE_URL}
+      DIFY_API_KEY: ${DIFY_API_KEY}
+      OAUTH_AUTH_SERVER: ${OAUTH_AUTH_SERVER}
+      OAUTH_CLIENT_ID: ${OAUTH_CLIENT_ID}
+      OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET}
+      OAUTH_REDIRECT_URI: ${OAUTH_REDIRECT_URI}
+      OAUTH_SCOPE: ${OAUTH_SCOPE}
+      PORT: 3000
+    ports:
+      - "${API_PUBLIC_PORT:-3000}:3000"
+
+volumes:
+  mysql_data:

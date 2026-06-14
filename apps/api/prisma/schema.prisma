@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum ServiceStatus {
+  DRAFT
+  ENABLED
+  DISABLED
+}
+
+enum MemorySource {
+  OAUTH
+  USER_CONFIRMED
+  INFERRED_FROM_CHAT
+  BEHAVIOR
+}
+
+enum MemorySensitivity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model UserProfile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  name          String?
+  email         String?
+  phone         String?
+  gender        String?
+  role          String?
+  groupName     String?
+  college       String?
+  major         String?
+  grade         String?
+  campus        String?
+  className     String?
+  birthDate     DateTime?
+  studentStatus String?
+  oauthRaw      Json?
+  source        String   @default("oauth")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  preference UserPreferenceProfile?
+  memories   UserMemory[]
+  events     UserEvent[]
+}
+
+model UserPreferenceProfile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  dormArea         String?
+  interests        Json?
+  examPlan         Json?
+  employmentStatus String?
+  financialAidNeed Boolean?
+  libraryUsage     Boolean?
+  customTags       Json?
+  updatedBy        String   @default("user")
+  updatedAt        DateTime @updatedAt
+
+  user UserProfile @relation(fields: [userId], references: [userId])
+}
+
+model UserMemory {
+  id          String            @id @default(cuid())
+  userId      String
+  memoryType  String
+  memoryKey   String
+  memoryValue String
+  confidence  Float             @default(1)
+  source      MemorySource
+  sensitivity MemorySensitivity @default(LOW)
+  expiresAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  user UserProfile @relation(fields: [userId], references: [userId])
+
+  @@index([userId, memoryType])
+  @@index([userId, memoryKey])
+}
+
+model ServiceItem {
+  id             String        @id @default(cuid())
+  title          String
+  category       String
+  description    String?       @db.Text
+  handlerCount   Int?
+  targetRoles    Json?
+  targetGrades   Json?
+  targetColleges Json?
+  targetCampuses Json?
+  entryUrl       String        @db.Text
+  department     String?
+  contactPerson  String?
+  contactPhone   String?
+  serviceTime    String?
+  basis          String?       @db.Text
+  materials      Json?
+  processSteps   Json?
+  notice         String?       @db.Text
+  keywords       Json?
+  faq            Json?
+  status         ServiceStatus @default(DRAFT)
+  sourceUrl      String?       @db.Text
+  lastVerifiedAt DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  events UserEvent[]
+
+  @@index([category])
+  @@index([status])
+}
+
+model UserEvent {
+  id            String   @id @default(cuid())
+  userId        String
+  eventType     String
+  serviceItemId String?
+  queryText     String?  @db.Text
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  user        UserProfile  @relation(fields: [userId], references: [userId])
+  serviceItem ServiceItem? @relation(fields: [serviceItemId], references: [id])
+
+  @@index([userId, eventType])
+  @@index([serviceItemId])
+}
+
+model RecommendRule {
+  id             String    @id @default(cuid())
+  name           String
+  conditions     Json
+  serviceItemIds Json
+  priority       Int       @default(0)
+  startTime      DateTime?
+  endTime        DateTime?
+  enabled        Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([enabled, priority])
+}
