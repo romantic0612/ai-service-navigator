@@ -3,11 +3,17 @@ import { ChevronDown, ChevronUp, Clock3, ExternalLink, Phone, UserRound } from '
 import { ref } from 'vue';
 import type { ServiceCard } from '../services/assistant';
 
+type TextPart = {
+  type: 'text' | 'link';
+  value: string;
+};
+
 const props = defineProps<{
   card: ServiceCard;
 }>();
 
 const expanded = ref(false);
+const urlPattern = /https?:\/\/[^\s，。；;、）)]+/g;
 
 function openService() {
   window.location.href = props.card.entryUrl;
@@ -15,6 +21,40 @@ function openService() {
 
 function isImageAsset(assetType: string) {
   return ['image', 'qrcode'].includes(assetType);
+}
+
+function linkParts(text?: string): TextPart[] {
+  if (!text) {
+    return [];
+  }
+
+  const parts: TextPart[] = [];
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(urlPattern)) {
+    const rawUrl = match[0];
+    const startIndex = match.index ?? 0;
+    const url = rawUrl.replace(/[，。；;、）)]+$/g, '');
+    const trailing = rawUrl.slice(url.length);
+
+    if (startIndex > lastIndex) {
+      parts.push({ type: 'text', value: text.slice(lastIndex, startIndex) });
+    }
+
+    parts.push({ type: 'link', value: url });
+
+    if (trailing) {
+      parts.push({ type: 'text', value: trailing });
+    }
+
+    lastIndex = startIndex + rawUrl.length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push({ type: 'text', value: text.slice(lastIndex) });
+  }
+
+  return parts.length ? parts : [{ type: 'text', value: text }];
 }
 </script>
 
@@ -30,7 +70,14 @@ function isImageAsset(assetType: string) {
       </button>
     </div>
 
-    <p v-if="card.description" class="service-card__desc">{{ card.description }}</p>
+    <p v-if="card.description" class="service-card__desc">
+      <template v-for="(part, index) in linkParts(card.description)" :key="`${part.value}-${index}`">
+        <a v-if="part.type === 'link'" class="text-link" :href="part.value" target="_blank" rel="noopener">
+          {{ part.value }}
+        </a>
+        <span v-else>{{ part.value }}</span>
+      </template>
+    </p>
 
     <div class="service-card__meta">
       <div v-if="card.department">
@@ -62,18 +109,39 @@ function isImageAsset(assetType: string) {
       <section v-if="card.materials.length">
         <h4>所需信息</h4>
         <ul>
-          <li v-for="material in card.materials" :key="material">{{ material }}</li>
+          <li v-for="material in card.materials" :key="material">
+            <template v-for="(part, index) in linkParts(material)" :key="`${part.value}-${index}`">
+              <a v-if="part.type === 'link'" class="text-link" :href="part.value" target="_blank" rel="noopener">
+                {{ part.value }}
+              </a>
+              <span v-else>{{ part.value }}</span>
+            </template>
+          </li>
         </ul>
       </section>
       <section v-if="card.processSteps.length">
         <h4>办理流程</h4>
         <ol>
-          <li v-for="step in card.processSteps" :key="step">{{ step }}</li>
+          <li v-for="step in card.processSteps" :key="step">
+            <template v-for="(part, index) in linkParts(step)" :key="`${part.value}-${index}`">
+              <a v-if="part.type === 'link'" class="text-link" :href="part.value" target="_blank" rel="noopener">
+                {{ part.value }}
+              </a>
+              <span v-else>{{ part.value }}</span>
+            </template>
+          </li>
         </ol>
       </section>
       <section v-if="card.notice">
         <h4>注意事项</h4>
-        <p>{{ card.notice }}</p>
+        <p>
+          <template v-for="(part, index) in linkParts(card.notice)" :key="`${part.value}-${index}`">
+            <a v-if="part.type === 'link'" class="text-link" :href="part.value" target="_blank" rel="noopener">
+              {{ part.value }}
+            </a>
+            <span v-else>{{ part.value }}</span>
+          </template>
+        </p>
       </section>
       <section v-if="card.assets.length">
         <h4>附件/相关链接</h4>

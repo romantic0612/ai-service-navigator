@@ -295,6 +295,14 @@ button {
   line-height: 1.6;
 }
 
+.text-link {
+  color: #156f68;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
 .service-assets {
   display: grid;
   gap: 10px;
