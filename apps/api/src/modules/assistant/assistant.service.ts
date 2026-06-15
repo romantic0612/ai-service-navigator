@@ -38,6 +38,7 @@ export class AssistantService {
     let difyIntent: Awaited<ReturnType<DifyService['recognizeIntent']>> = null;
     let searchQuery = message;
     let searchResult = await this.serviceItemsService.search(searchQuery, profile);
+
     if (searchResult.items.length === 0) {
       difyIntent = await this.difyService.recognizeIntent(message, profile);
       searchQuery = [message, difyIntent?.intent, difyIntent?.category, ...(difyIntent?.keywords ?? [])]
@@ -45,6 +46,7 @@ export class AssistantService {
         .join(' ');
       searchResult = await this.serviceItemsService.search(searchQuery, profile);
     }
+
     const roleMismatchResult =
       searchResult.items.length === 0
         ? await this.serviceItemsService.search(searchQuery, profile, { ignoreRoleFilter: true })
@@ -62,9 +64,18 @@ export class AssistantService {
     ]);
 
     if (serviceCards.length === 0) {
+      await this.profilesService.recordUserEvent(userId, {
+        eventType: 'no_result',
+        queryText: message,
+        metadata: {
+          fallbackUsed: Boolean(difyIntent?.intent),
+          intent: difyIntent?.intent,
+          category: difyIntent?.category,
+        },
+      });
       return {
         action: 'no_reliable_result',
-        message: '我暂时没有找到可靠的办理事项。你可以换一种说法，或者提供更具体的办事场景。',
+        message: '当前问题没匹配到稳定可办理的事项，建议你先从“学生办事入口”里按办事名称或对象筛选后再试。',
         profileUpdateCandidates,
       };
     }
@@ -104,18 +115,18 @@ export class AssistantService {
 
   private buildReplyMessage(count: number, usedDify: boolean, intent?: string): string {
     if (usedDify && intent) {
-      return `我理解你想办理“${intent}”相关事项，先找到了 ${count} 个可靠入口，入口和流程以卡片为准。`;
+      return `已识别到你要办“${intent}”，我给你筛出了 ${count} 个可直接办理入口，先试试看吧。`;
     }
 
-    return `我先按你的情况找到了 ${count} 个可能相关的办理事项，入口和流程以卡片为准。`;
+    return `我给你找到了 ${count} 个可直接办理的入口，点开就能开始。`;
   }
 
   private buildRoleMismatchMessage(profile: ProfileSummary, serviceCards: ServiceItemCard[]): string {
-    const roleText = profile.role ? `当前身份为“${profile.role}”` : '当前身份';
+    const roleText = profile.role ? `当前身份为【${profile.role}】` : '当前身份未知';
     const targetRoles = [...new Set(serviceCards.flatMap((card) => card.targetRoles))].filter(Boolean);
-    const targetText = targetRoles.length ? `，该事项面向对象为：${targetRoles.join('、')}` : '';
+    const targetText = targetRoles.length ? `该事项适配身份为：${targetRoles.join('，')}` : '';
 
-    return `我没有找到与${roleText}匹配的办理入口。不过学校办事库中有相近事项${targetText}。如果你是在帮他人咨询，可以查看下方卡片；本人办理请以学校办事指南和负责部门要求为准。`;
+    return `这条结果和${roleText}不完全匹配，以下是可查看的事项：${targetText}，如果你有相符身份，点开后可继续办理。`;
   }
 
   private mergeProfileCandidates(candidates: ProfileUpdateCandidate[]): ProfileUpdateCandidate[] {
@@ -130,25 +141,25 @@ export class AssistantService {
   private extractProfileUpdateCandidates(message: string): ProfileUpdateCandidate[] {
     const candidates: ProfileUpdateCandidate[] = [];
 
-    if (message.includes('考研')) {
+    if (message.includes('考试')) {
       candidates.push({
         key: 'exam_plan',
-        value: '考研',
+        value: '考试',
         confidence: 0.92,
         sensitivity: 'medium',
         needConfirm: true,
-        reason: '你在对话中明确提到考研意向，可用于后续推荐成绩单、档案、复试材料等事项。',
+        reason: '识别到你可能在提到考试相关场景，可用于后续更精细的提醒。',
       });
     }
 
-    if (message.includes('找工作') || message.includes('就业') || message.includes('实习')) {
+    if (message.includes('就业') || message.includes('考研') || message.includes('实习')) {
       candidates.push({
         key: 'interest',
         value: '就业',
         confidence: 0.86,
         sensitivity: 'medium',
         needConfirm: true,
-        reason: '你提到就业相关需求，可用于后续推荐就业协议、招聘信息、档案转递等事项。',
+        reason: '识别到你关注就业/实习/考研方向，后续可优先推荐相关入口。',
       });
     }
 

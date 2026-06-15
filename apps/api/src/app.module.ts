@@ -6,6 +6,7 @@ import { DifyModule } from './modules/dify/dify.module';
 import { ProfilesModule } from './modules/profiles/profiles.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { ServicesModule } from './modules/services/services.module';
+import { MonitorModule } from './modules/monitor/monitor.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -16,6 +17,7 @@ import { HealthController } from './health.controller';
     AuthModule,
     ProfilesModule,
     ServicesModule,
+    MonitorModule,
     AssistantModule,
   ],
   controllers: [HealthController],

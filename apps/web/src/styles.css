@@ -258,7 +258,7 @@ button {
 
 .service-card__actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 9px;
   margin-top: 13px;
 }
@@ -283,6 +283,11 @@ button {
 .secondary-action {
   color: #1a6c87;
   background: #eaf2f5;
+}
+
+.warning-action {
+  color: #b04e1a;
+  background: #fff4ea;
 }
 
 .service-card__details {
@@ -415,6 +420,65 @@ button {
 .memory-strip__actions button:last-child {
   color: #66727d;
   background: #edf2f3;
+}
+
+.monitor-card {
+  margin-top: 12px;
+  border: 1px solid #dbe5e8;
+  border-radius: 10px;
+  padding: 13px;
+  background: #ffffff;
+}
+
+.monitor-card h2 {
+  margin: 0 0 9px;
+  font-size: 15px;
+  color: #1f2d3b;
+}
+
+.monitor-card h3.monitor-subtitle {
+  margin: 11px 0 6px;
+  font-size: 13px;
+  color: #445361;
+}
+
+.monitor-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.monitor-list li {
+  border: 1px dashed #dce8eb;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #f6fbfc;
+  display: grid;
+  gap: 3px;
+}
+
+.monitor-list strong {
+  color: #1f2d3b;
+}
+
+.monitor-list span,
+.monitor-list small {
+  color: #54626c;
+  font-size: 12px;
+}
+
+.monitor-list small {
+  color: #7f8e99;
+}
+
+.monitor-empty {
+  color: #5f6f79;
+  padding: 12px;
+  background: #fff;
+  border: 1px dashed #dbe5e8;
+  border-radius: 10px;
 }
 
 .quick-prompts {

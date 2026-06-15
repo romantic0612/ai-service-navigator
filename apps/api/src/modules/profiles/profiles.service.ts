@@ -145,29 +145,26 @@ export class ProfilesService {
           memoryValue: dto.value,
         },
       });
-      const data = {
-        userId,
-        memoryType: 'preference',
-        memoryKey: dto.key,
-        memoryValue: dto.value,
-        confidence: dto.confidence ?? 1,
-        source: 'USER_CONFIRMED',
-        sensitivity: this.toPrismaSensitivity(dto.sensitivity),
-      };
       const now = databaseNow();
       const memory = existingMemory
         ? await (this.prisma.userMemory as any).update({
             where: { id: existingMemory.id },
             data: {
-              confidence: data.confidence,
-              source: data.source,
-              sensitivity: data.sensitivity,
+              confidence: dto.confidence ?? 1,
+              source: 'USER_CONFIRMED',
+              sensitivity: this.toPrismaSensitivity(dto.sensitivity),
               updatedAt: now,
             },
           })
         : await (this.prisma.userMemory as any).create({
             data: {
-              ...data,
+              userId,
+              memoryType: 'preference',
+              memoryKey: dto.key,
+              memoryValue: dto.value,
+              confidence: dto.confidence ?? 1,
+              source: 'USER_CONFIRMED',
+              sensitivity: this.toPrismaSensitivity(dto.sensitivity),
               createdAt: now,
               updatedAt: now,
             },
@@ -197,7 +194,7 @@ export class ProfilesService {
         },
       });
     } catch {
-      // The assistant remains usable in local mock mode when MySQL is not running.
+      // No-op when DB is not reachable; assistant still works in degraded mode.
     }
   }
 
@@ -208,6 +205,7 @@ export class ProfilesService {
         data: {
           userId,
           eventType: dto.eventType,
+          queryText: dto.queryText,
           serviceItemId: dto.serviceItemId,
           metadata: dto.metadata as any,
           createdAt: databaseNow(),
@@ -248,14 +246,14 @@ export class ProfilesService {
   private getFallbackSummary(userId: string): ProfileSummary {
     return {
       userId,
-      name: '演示用户',
-      role: '本科生',
-      college: '计算机学院',
-      grade: '大四',
-      campus: '主校区',
+      name: '访客',
+      role: '学生',
+      college: '智能网关',
+      grade: '未知',
+      campus: '校内',
       studentStatus: '在校',
-      tags: ['毕业生'],
-      recentIntents: ['成绩单打印'],
+      tags: ['待补充'],
+      recentIntents: ['默认欢迎语'],
     };
   }
 
@@ -264,19 +262,24 @@ export class ProfilesService {
       return undefined;
     }
 
-    const knownRoles = ['本科生', '研究生', '教职工', '教师'];
+    const knownRoles = ['本科生', '研究生', '教职工', '校友', '访客'];
     return knownRoles.find((role) => groupName.includes(role));
   }
 
   private normalizeGender(gender?: string): string | undefined {
-    if (gender === '男') {
-      return '女';
+    if (!gender) {
+      return undefined;
     }
 
-    if (gender === '女') {
+    const normalized = gender.trim();
+    if (normalized === '1' || normalized === '男') {
       return '男';
     }
 
-    return gender;
+    if (normalized === '2' || normalized === '女') {
+      return '女';
+    }
+
+    return normalized;
   }
 }

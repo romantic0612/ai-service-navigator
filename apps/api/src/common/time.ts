@@ -1,4 +1,4 @@
-const DEFAULT_OFFSET_MINUTES = 8 * 60;
+const DEFAULT_OFFSET_MINUTES = 0;
 
 function getDatabaseOffsetMinutes() {
   const rawValue = process.env.APP_TIMEZONE_OFFSET_MINUTES;

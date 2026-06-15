@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ChevronDown, ChevronUp, Clock3, ExternalLink, Phone, UserRound } from '@lucide/vue';
+import { AlertTriangle, ChevronDown, ChevronUp, Clock3, ExternalLink, Phone, UserRound } from '@lucide/vue';
 import { ref } from 'vue';
-import { recordUserEvent, type ServiceCard } from '../services/assistant';
+import { recordSecondaryAuthIssue, recordUserEvent, type ServiceCard } from '../services/assistant';
 
 type TextPart = {
   type: 'text' | 'link';
@@ -14,7 +14,7 @@ const props = defineProps<{
 }>();
 
 const expanded = ref(false);
-const urlPattern = /https?:\/\/[^\s，。；;、）)]+/g;
+const urlPattern = /https?:\/\/[^\s)]+/g;
 
 function openService() {
   const go = () => {
@@ -26,9 +26,18 @@ function openService() {
     return;
   }
 
-  void recordUserEvent(props.userId, 'open_service', props.card.id, { title: props.card.title })
-    .catch(() => undefined)
-    .finally(go);
+  void recordUserEvent(props.userId, 'open_service', props.card.id, { title: props.card.title }).catch(() => undefined).finally(go);
+}
+
+function reportAuthBarrier() {
+  if (!props.userId) {
+    return;
+  }
+
+  void recordSecondaryAuthIssue(props.userId, props.card.id, {
+    title: props.card.title,
+    reason: '用户反馈：进入事项遇到二次认证障碍',
+  }).catch(() => undefined);
 }
 
 function openUrl(url: string) {
@@ -50,7 +59,8 @@ function linkParts(text?: string): TextPart[] {
   for (const match of text.matchAll(urlPattern)) {
     const rawUrl = match[0];
     const startIndex = match.index ?? 0;
-    const url = rawUrl.replace(/[，。；;、）)]+$/g, '');
+    const trailingRegex = /[，。；;)]+$/;
+    const url = rawUrl.replace(trailingRegex, '');
     const trailing = rawUrl.slice(url.length);
 
     if (startIndex > lastIndex) {
@@ -81,7 +91,7 @@ function linkParts(text?: string): TextPart[] {
         <div class="service-card__category">{{ card.category }}</div>
         <h3>{{ card.title }}</h3>
       </div>
-      <button class="icon-button" type="button" aria-label="去办理" @click="openService">
+      <button class="icon-button" type="button" aria-label="打开外部办理入口" @click="openService">
         <ExternalLink :size="18" />
       </button>
     </div>
@@ -98,7 +108,7 @@ function linkParts(text?: string): TextPart[] {
     <div class="service-card__meta">
       <div v-if="card.targetRoles.length">
         <UserRound :size="15" />
-        <span>面向对象：{{ card.targetRoles.join('、') }}</span>
+        <span>适用对象：{{ card.targetRoles.join('，') }}</span>
       </div>
       <div v-if="card.department">
         <UserRound :size="15" />
@@ -119,6 +129,10 @@ function linkParts(text?: string): TextPart[] {
         <ExternalLink :size="16" />
         <span>去办理</span>
       </button>
+      <button class="warning-action" type="button" @click="reportAuthBarrier">
+        <AlertTriangle :size="16" />
+        <span>二次认证卡住了</span>
+      </button>
       <button class="secondary-action" type="button" @click="expanded = !expanded">
         <component :is="expanded ? ChevronUp : ChevronDown" :size="16" />
         <span>{{ expanded ? '收起流程' : '查看流程' }}</span>
@@ -127,7 +141,7 @@ function linkParts(text?: string): TextPart[] {
 
     <div v-if="expanded" class="service-card__details">
       <section v-if="card.materials.length">
-        <h4>所需信息</h4>
+        <h4>办理材料</h4>
         <ul>
           <li v-for="material in card.materials" :key="material">
             <template v-for="(part, index) in linkParts(material)" :key="`${part.value}-${index}`">
@@ -164,7 +178,7 @@ function linkParts(text?: string): TextPart[] {
         </p>
       </section>
       <section v-if="card.assets.length">
-        <h4>附件/相关链接</h4>
+        <h4>附件/链接</h4>
         <div class="service-assets">
           <template v-for="asset in card.assets" :key="asset.id">
             <figure v-if="isImageAsset(asset.assetType)" class="service-asset-image">
@@ -172,7 +186,7 @@ function linkParts(text?: string): TextPart[] {
               <figcaption v-if="asset.title">{{ asset.title }}</figcaption>
             </figure>
             <a v-else class="service-asset-link" :href="asset.url" @click.prevent="openUrl(asset.url)">
-              {{ asset.title || '查看相关链接' }}
+              {{ asset.title || '查看附件链接' }}
             </a>
           </template>
         </div>
