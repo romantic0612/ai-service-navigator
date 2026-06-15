@@ -62,19 +62,7 @@ export class AiMemoryService {
   async generateOpening(userId: string, profile: ProfileSummary): Promise<OpeningReply> {
     const recentMemories = await this.getRecentLowSensitivityMemories(userId, 5);
     const popularServices = await this.getPopularServiceTitles(profile, 3);
-    const fallback = this.fallbackOpening(profile, recentMemories, popularServices);
-    const modelResult = await this.withModelTimeout(
-      this.miniMaxService.jsonChat(this.openingPrompt(), {
-        profile,
-        recent_memories: recentMemories,
-        recent_common_services: popularServices,
-      }),
-    );
-
-    return {
-      opening: this.toOptionalString(modelResult?.opening) ?? fallback.opening,
-      quickActions: this.withFallbackStrings(this.toStringArray(modelResult?.quick_actions).slice(0, 3), fallback.quickActions),
-    };
+    return this.fallbackOpening(profile, recentMemories, popularServices);
   }
 
   processTurnInBackground(profile: ProfileSummary, context: MemoryExtractionContext): void {
@@ -87,7 +75,10 @@ export class AiMemoryService {
     }
 
     const fallback: { memories: ExtractedMemory[]; preferenceUpdates: PreferenceUpdate[] } = this.fallbackExtraction(context.serviceCards);
-    const modelResult = await this.miniMaxService.jsonChat(this.memoryExtractionPrompt(), {
+    await this.saveMemories(context.userId, fallback.memories);
+    await this.savePreferenceUpdates(context.userId, fallback.preferenceUpdates);
+
+    const modelResult = await this.withModelTimeout(this.miniMaxService.jsonChat(this.memoryExtractionPrompt(), {
       profile,
       user_message: context.message,
       assistant_reply: context.replyMessage,
@@ -112,12 +103,16 @@ export class AiMemoryService {
         ],
         preference_updates: [{ key: 'frequent_category', value: '分类名称', confidence: 0.8 }],
       },
-    });
+    }));
+
+    if (!modelResult) {
+      return;
+    }
 
     const memories = this.toMemories(modelResult?.memories);
     const preferenceUpdates = this.toPreferenceUpdates(modelResult?.preference_updates);
-    await this.saveMemories(context.userId, memories.length ? memories : fallback.memories);
-    await this.savePreferenceUpdates(context.userId, preferenceUpdates.length ? preferenceUpdates : fallback.preferenceUpdates);
+    await this.saveMemories(context.userId, memories);
+    await this.savePreferenceUpdates(context.userId, preferenceUpdates);
   }
 
   private async saveMemories(userId: string, memories: ExtractedMemory[]): Promise<void> {

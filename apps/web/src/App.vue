@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
 import { Bot, Check, Send, Sparkles, X } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import ServiceCard from './components/ServiceCard.vue';
 import {
   getAssistantOpening,
@@ -35,6 +35,7 @@ const monitorLoginError = ref('');
 const nextId = ref(1);
 const savedCandidates = ref<string[]>([]);
 const messages = ref<ChatMessage[]>([]);
+const chatPanel = ref<HTMLElement | null>(null);
 const isMonitorPage = computed(() => {
   const pathname = window.location.pathname || '/';
   return pathname === '/monitor' || pathname.startsWith('/monitor/');
@@ -67,13 +68,16 @@ if (isMonitorPage.value) {
           guideSuggestions: opening.quickActions,
         },
       });
+      scrollToLatestMessage('auto');
     })
     .catch(() => {
       profile.value = null;
       messages.value.push(...defaultWelcomeMessages());
+      scrollToLatestMessage('auto');
     });
 } else {
   messages.value.push(...defaultWelcomeMessages());
+  scrollToLatestMessage('auto');
 }
 
 function resolveUserId(isMonitor: boolean) {
@@ -200,6 +204,7 @@ async function submitMessage(text = input.value) {
   });
 
   loading.value = true;
+  await scrollToLatestMessage();
   try {
     const reply = await sendAssistantMessage(message, currentUserId.value || 'demo-user');
     messages.value.push({
@@ -216,7 +221,18 @@ async function submitMessage(text = input.value) {
     });
   } finally {
     loading.value = false;
+    await scrollToLatestMessage();
   }
+}
+
+async function scrollToLatestMessage(behavior: ScrollBehavior = 'smooth') {
+  await nextTick();
+  const latestMessage = chatPanel.value?.lastElementChild;
+  latestMessage?.scrollIntoView({ block: 'end', behavior });
+  window.scrollTo({
+    top: document.documentElement.scrollHeight,
+    behavior,
+  });
 }
 
 function candidateKey(candidate: ProfileUpdateCandidate) {
@@ -353,7 +369,7 @@ function defaultWelcomeMessages(): ChatMessage[] {
         <button class="ghost-button" type="button">{{ displayName }}</button>
       </header>
 
-      <section class="chat-panel" aria-label="AI办事对话">
+      <section ref="chatPanel" class="chat-panel" aria-label="AI办事对话">
         <div v-for="message in messages" :key="message.id" class="message-row" :class="`message-row--${message.role}`">
           <div v-if="message.role === 'assistant'" class="avatar">
             <Bot :size="17" />

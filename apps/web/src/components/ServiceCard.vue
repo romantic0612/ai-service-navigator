@@ -14,6 +14,7 @@ const props = defineProps<{
 }>();
 
 const expanded = ref(false);
+const authReportState = ref<'idle' | 'sent'>('idle');
 const urlPattern = /https?:\/\/[^\s)]+/g;
 
 function openService() {
@@ -37,7 +38,11 @@ function reportAuthBarrier() {
   void recordSecondaryAuthIssue(props.userId, props.card.id, {
     title: props.card.title,
     reason: '用户反馈：进入事项遇到二次认证障碍',
-  }).catch(() => undefined);
+  })
+    .then(() => {
+      authReportState.value = 'sent';
+    })
+    .catch(() => undefined);
 }
 
 function openUrl(url: string) {
@@ -131,7 +136,7 @@ function linkParts(text?: string): TextPart[] {
       </button>
       <button class="warning-action" type="button" @click="reportAuthBarrier">
         <AlertTriangle :size="16" />
-        <span>二次认证卡住了</span>
+        <span>{{ authReportState === 'sent' ? '已上报' : '上报二次认证' }}</span>
       </button>
       <button class="secondary-action" type="button" @click="expanded = !expanded">
         <component :is="expanded ? ChevronUp : ChevronDown" :size="16" />
