@@ -35,11 +35,16 @@ export class AssistantService {
       };
     }
 
-    const difyIntent = await this.difyService.recognizeIntent(message, profile);
-    const searchQuery = [message, difyIntent?.intent, difyIntent?.category, ...(difyIntent?.keywords ?? [])]
-      .filter(Boolean)
-      .join(' ');
-    const searchResult = await this.serviceItemsService.search(searchQuery, profile);
+    let difyIntent: Awaited<ReturnType<DifyService['recognizeIntent']>> = null;
+    let searchQuery = message;
+    let searchResult = await this.serviceItemsService.search(searchQuery, profile);
+    if (searchResult.items.length === 0) {
+      difyIntent = await this.difyService.recognizeIntent(message, profile);
+      searchQuery = [message, difyIntent?.intent, difyIntent?.category, ...(difyIntent?.keywords ?? [])]
+        .filter(Boolean)
+        .join(' ');
+      searchResult = await this.serviceItemsService.search(searchQuery, profile);
+    }
     const roleMismatchResult =
       searchResult.items.length === 0
         ? await this.serviceItemsService.search(searchQuery, profile, { ignoreRoleFilter: true })

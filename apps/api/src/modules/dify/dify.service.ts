@@ -61,7 +61,7 @@ export class DifyService {
   ): Promise<DifyChatMessageResponse> {
     const baseUrl = this.normalizeBaseUrl(this.configService.get<string>('DIFY_API_BASE_URL') ?? 'https://api.dify.ai/v1');
     const controller = new AbortController();
-    const timeoutMs = Number(this.configService.get<string>('DIFY_TIMEOUT_MS') ?? 15000);
+    const timeoutMs = Number(this.configService.get<string>('DIFY_TIMEOUT_MS') ?? 5000);
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(`${baseUrl}/chat-messages`, {

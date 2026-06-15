@@ -44,7 +44,7 @@ export class MiniMaxService {
 
   private async chat(messages: MiniMaxChatMessage[]): Promise<string> {
     const controller = new AbortController();
-    const timeoutMs = Number(this.configService.get<string>('MINIMAX_TIMEOUT_MS') ?? 12000);
+    const timeoutMs = Number(this.configService.get<string>('MINIMAX_TIMEOUT_MS') ?? 3000);
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {

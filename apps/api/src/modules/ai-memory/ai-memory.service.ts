@@ -42,13 +42,15 @@ export class AiMemoryService {
   async generateGuide(profile: ProfileSummary, message = ''): Promise<GuideReply> {
     const recentMemories = await this.getRecentLowSensitivityMemories(profile.userId, 3);
     const popularServices = await this.getPopularServiceTitles(profile, 5);
-    const modelResult = await this.miniMaxService.jsonChat(this.guidePrompt(), {
-      profile,
-      current_message: message,
-      recent_memories: recentMemories,
-      recent_common_services: popularServices,
-    });
     const fallback = this.fallbackGuide(profile, recentMemories, popularServices, message);
+    const modelResult = await this.withModelTimeout(
+      this.miniMaxService.jsonChat(this.guidePrompt(), {
+        profile,
+        current_message: message,
+        recent_memories: recentMemories,
+        recent_common_services: popularServices,
+      }),
+    );
 
     return {
       reply: this.toOptionalString(modelResult?.reply) ?? fallback.reply,
@@ -60,11 +62,13 @@ export class AiMemoryService {
     const recentMemories = await this.getRecentLowSensitivityMemories(userId, 5);
     const popularServices = await this.getPopularServiceTitles(profile, 3);
     const fallback = this.fallbackOpening(profile, recentMemories, popularServices);
-    const modelResult = await this.miniMaxService.jsonChat(this.openingPrompt(), {
-      profile,
-      recent_memories: recentMemories,
-      recent_common_services: popularServices,
-    });
+    const modelResult = await this.withModelTimeout(
+      this.miniMaxService.jsonChat(this.openingPrompt(), {
+        profile,
+        recent_memories: recentMemories,
+        recent_common_services: popularServices,
+      }),
+    );
 
     return {
       opening: this.toOptionalString(modelResult?.opening) ?? fallback.opening,
@@ -482,6 +486,23 @@ export class AiMemoryService {
 
   private withFallbackStrings(value: string[], fallback: string[]): string[] {
     return value.length > 0 ? value : fallback;
+  }
+
+  private async withModelTimeout<T>(promise: Promise<T>): Promise<T | null> {
+    const timeoutMs = 2500;
+    let timeout: NodeJS.Timeout | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<null>((resolve) => {
+          timeout = setTimeout(() => resolve(null), timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    }
   }
 
   private toOptionalString(value: unknown): string | undefined {
