@@ -51,12 +51,18 @@ export type ProfileSummary = {
 };
 
 export type AssistantReply = {
-  action: 'clarify' | 'recommend_service' | 'role_mismatch' | 'no_reliable_result';
+  action: 'clarify' | 'guide' | 'recommend_service' | 'role_mismatch' | 'no_reliable_result';
   message: string;
   clarifyQuestion?: string;
   clarifyOptions?: string[];
+  guideSuggestions?: string[];
   serviceCards?: ServiceCard[];
   profileUpdateCandidates?: ProfileUpdateCandidate[];
+};
+
+export type AssistantOpening = {
+  opening: string;
+  quickActions: string[];
 };
 
 export async function getProfileSummary(userId: string) {
@@ -70,6 +76,12 @@ export async function sendAssistantMessage(message: string, userId: string) {
     userId,
     message,
   });
+
+  return response.data;
+}
+
+export async function getAssistantOpening(userId: string) {
+  const response = await axios.get<AssistantOpening>(`${apiBaseUrl}/assistant/opening/${userId}`);
 
   return response.data;
 }

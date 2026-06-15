@@ -170,6 +170,25 @@ button {
   margin-top: 11px;
 }
 
+.guide-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.guide-suggestions button {
+  min-height: 31px;
+  padding: 6px 10px;
+  border: 1px solid #d5e0e4;
+  border-radius: 999px;
+  color: #156f68;
+  background: #eef7f5;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
 .service-card {
   width: min(100%, 420px);
   border: 1px solid #dbe5e8;

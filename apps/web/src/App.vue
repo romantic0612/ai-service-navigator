@@ -3,6 +3,7 @@ import { Bot, Check, Send, Sparkles, X } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import ServiceCard from './components/ServiceCard.vue';
 import {
+  getAssistantOpening,
   getProfileSummary,
   saveProfileMemory,
   sendAssistantMessage,
@@ -20,23 +21,12 @@ type ChatMessage = {
 
 const input = ref('');
 const loading = ref(false);
-const nextId = ref(3);
+const nextId = ref(1);
 const savedCandidates = ref<string[]>([]);
 const currentUserId = ref(resolveUserId());
 const profile = ref<ProfileSummary | null>(null);
 const displayName = computed(() => profile.value?.name || '我的');
-const messages = ref<ChatMessage[]>([
-  {
-    id: 1,
-    role: 'assistant',
-    content: '你好，我是 AI 办事助手。你可以直接说想办什么，不用记事项名称。',
-  },
-  {
-    id: 2,
-    role: 'assistant',
-    content: '比如：云盘怎么用、体育场馆预约、学生档案去哪查、我想给学校提建议。',
-  },
-]);
+const messages = ref<ChatMessage[]>([]);
 
 const quickPrompts = ['云盘怎么用', '体育场馆预约', '学生档案去向查询', '我想给学校提建议'];
 
@@ -44,10 +34,26 @@ if (currentUserId.value) {
   getProfileSummary(currentUserId.value)
     .then((summary) => {
       profile.value = summary;
+      return getAssistantOpening(currentUserId.value);
+    })
+    .then((opening) => {
+      messages.value.push({
+        id: nextId.value++,
+        role: 'assistant',
+        content: opening.opening,
+        reply: {
+          action: 'guide',
+          message: opening.opening,
+          guideSuggestions: opening.quickActions,
+        },
+      });
     })
     .catch(() => {
       profile.value = null;
+      messages.value.push(...defaultWelcomeMessages());
     });
+} else {
+  messages.value.push(...defaultWelcomeMessages());
 }
 
 function resolveUserId() {
@@ -133,6 +139,21 @@ async function rememberCandidate(candidate: ProfileUpdateCandidate) {
 function dismissCandidate(candidate: ProfileUpdateCandidate) {
   savedCandidates.value.push(candidateKey(candidate));
 }
+
+function defaultWelcomeMessages(): ChatMessage[] {
+  return [
+    {
+      id: nextId.value++,
+      role: 'assistant',
+      content: '你好，我是 AI 办事助手。你可以直接说想办什么，不用记事项名称。',
+    },
+    {
+      id: nextId.value++,
+      role: 'assistant',
+      content: '比如：云盘怎么用、体育场馆预约、学生档案去哪查、我想给学校提建议。',
+    },
+  ];
+}
 </script>
 
 <template>
@@ -158,6 +179,16 @@ function dismissCandidate(candidate: ProfileUpdateCandidate) {
           <p>{{ message.content }}</p>
           <div v-if="message.reply?.serviceCards?.length" class="service-list">
             <ServiceCard v-for="card in message.reply.serviceCards" :key="card.id" :card="card" />
+          </div>
+          <div v-if="message.reply?.guideSuggestions?.length" class="guide-suggestions">
+            <button
+              v-for="suggestion in message.reply.guideSuggestions"
+              :key="suggestion"
+              type="button"
+              @click="submitMessage(suggestion)"
+            >
+              {{ suggestion }}
+            </button>
           </div>
         </div>
       </div>
