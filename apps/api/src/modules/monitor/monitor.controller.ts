@@ -88,4 +88,13 @@ export class MonitorController {
   getRecentAssistantTurns(@Query('limit') limit = '30') {
     return this.monitorService.getRecentAssistantTurns(Number.parseInt(limit, 10));
   }
+
+  @UseGuards(MonitorAuthGuard)
+  @Get('unmet-needs')
+  getUnmetNeeds(@Query('days') days = '30', @Query('limit') limit = '20') {
+    return this.monitorService.getUnmetNeeds({
+      days: Number.parseInt(days, 10),
+      limit: Number.parseInt(limit, 10),
+    });
+  }
 }

@@ -4,6 +4,6 @@ import { MiniMaxService } from './minimax.service';
 
 @Module({
   providers: [AiMemoryService, MiniMaxService],
-  exports: [AiMemoryService],
+  exports: [AiMemoryService, MiniMaxService],
 })
 export class AiMemoryModule {}

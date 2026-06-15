@@ -114,7 +114,44 @@ export type MonitorOverview = {
   visitorSummary: MonitorVisitorSummary;
   studentTopQuestions: MonitorTopQuestionItem[];
   teacherTopQuestions: MonitorTopQuestionItem[];
+  unmetNeeds: MonitorUnmetNeeds;
   updatedAt: string;
+};
+
+export type MonitorUnmetNeedItem = {
+  key: string;
+  queryText: string;
+  count: number;
+  users: number;
+  primaryRole: string;
+  roleBreakdown: Array<{ role: string; count: number }>;
+  topCollege?: string;
+  action: string;
+  firstAt: string;
+  lastAt: string;
+  suggestedIntent: string;
+  suggestedCategory: string;
+  priority: 'high' | 'medium' | 'low';
+  reason: string;
+  suggestedKeywords: string[];
+  suggestedAction: string;
+  samples: Array<{
+    queryText: string;
+    responseText: string;
+    userId: string;
+    userName: string;
+    userRole: string;
+    college?: string;
+    createdAt: string;
+  }>;
+};
+
+export type MonitorUnmetNeeds = {
+  days: number;
+  total: number;
+  modelEnabled: boolean;
+  generatedAt: string;
+  items: MonitorUnmetNeedItem[];
 };
 
 export type MonitorVisitorSummary = {

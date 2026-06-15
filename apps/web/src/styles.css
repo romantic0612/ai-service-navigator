@@ -1393,6 +1393,122 @@ button {
   text-align: right;
 }
 
+.monitor-card--unmet {
+  border: 1px solid rgba(239, 68, 68, 0.16);
+  background:
+    radial-gradient(circle at 12% 12%, rgba(239, 68, 68, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.9));
+}
+
+.monitor-unmet-summary {
+  margin: -4px 0 16px;
+  color: #607684;
+  line-height: 1.6;
+}
+
+.monitor-unmet-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.monitor-unmet-list article {
+  padding: 16px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+}
+
+.monitor-unmet-list header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.monitor-unmet-list header div {
+  display: grid;
+  gap: 5px;
+}
+
+.monitor-unmet-list strong {
+  color: #0f2233;
+  font-size: 1rem;
+}
+
+.monitor-unmet-list span,
+.monitor-unmet-list p,
+.monitor-unmet-list small {
+  color: #657887;
+}
+
+.monitor-unmet-list p {
+  margin: 12px 0;
+  line-height: 1.6;
+}
+
+.monitor-priority {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.monitor-priority--high {
+  background: #ef4444;
+}
+
+.monitor-priority--medium {
+  background: #f97316;
+}
+
+.monitor-priority--low {
+  background: #0f766e;
+}
+
+.monitor-unmet-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.monitor-unmet-tags span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.08);
+  color: #0f766e;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.monitor-unmet-list details {
+  border-top: 1px dashed rgba(96, 116, 130, 0.28);
+  padding-top: 10px;
+}
+
+.monitor-unmet-list summary {
+  cursor: pointer;
+  color: #0f766e;
+  font-weight: 900;
+}
+
+.monitor-unmet-list details div {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(238, 247, 246, 0.82);
+}
+
+.monitor-unmet-list details small {
+  line-height: 1.55;
+}
+
 .monitor-hero--visitors {
   background:
     linear-gradient(135deg, rgba(9, 79, 75, 0.98), rgba(22, 126, 145, 0.95)),

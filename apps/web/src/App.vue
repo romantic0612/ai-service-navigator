@@ -114,6 +114,8 @@ const monitorStudentQuestionPeak = computed(() =>
 const monitorTeacherQuestionPeak = computed(() =>
   Math.max(...monitorTeacherQuestionChart.value.map((item) => item.count), 1),
 );
+const monitorUnmetNeedChart = computed(() => (monitor.value?.unmetNeeds.items ?? []).slice(0, 6));
+const monitorUnmetNeedPeak = computed(() => Math.max(...monitorUnmetNeedChart.value.map((item) => item.count), 1));
 
 const quickPrompts = computed(() => {
   if (profile.value?.role === '教职工') {
@@ -340,6 +342,23 @@ function monitorQuestionColor(index: number, mode: 'student' | 'teacher') {
   const teacherColors = ['#1ea7ff', '#ff7f50', '#7d5cff', '#18c29c', '#ff4f8b', '#d6f542'];
   const colors = mode === 'teacher' ? teacherColors : studentColors;
   return colors[index % colors.length];
+}
+
+function monitorUnmetColor(index: number) {
+  const colors = ['#ef4444', '#f97316', '#f59e0b', '#14b8a6', '#0ea5e9', '#8b5cf6'];
+  return colors[index % colors.length];
+}
+
+function monitorPriorityText(priority: 'high' | 'medium' | 'low') {
+  if (priority === 'high') {
+    return '高优先级';
+  }
+
+  if (priority === 'medium') {
+    return '中优先级';
+  }
+
+  return '低优先级';
 }
 
 function monitorRoleColor(index: number) {
@@ -635,6 +654,69 @@ function defaultWelcomeMessages(): ChatMessage[] {
             <p v-if="monitor.teacherTopQuestions.length > monitorTeacherQuestionChart.length" class="monitor-chart-note">
               已展示前 {{ monitorTeacherQuestionChart.length }} 个高频问题
             </p>
+          </div>
+        </section>
+
+        <section class="monitor-card monitor-card--question-chart monitor-card--unmet">
+          <div class="monitor-card__heading">
+            <div>
+              <span>Unmet Needs</span>
+              <h2>未满足需求池</h2>
+            </div>
+            <small>{{ monitor.unmetNeeds.modelEnabled ? 'MiniMax 已归类' : '本地规则归类' }}</small>
+          </div>
+          <p class="monitor-unmet-summary">
+            {{ monitor.days }} 天内发现 {{ monitor.unmetNeeds.total }} 条未被直接满足的对话，用来反推事项库、关键词和身份规则。
+          </p>
+          <p v-if="!monitor.unmetNeeds.items.length" class="monitor-empty">暂无未满足需求</p>
+          <div v-else class="monitor-column-chart monitor-column-chart--unmet" aria-label="未满足需求柱状图">
+            <div class="monitor-column-chart__legend">
+              <span
+                v-for="(item, index) in monitorUnmetNeedChart"
+                :key="item.key"
+                :style="{ '--chart-color': monitorUnmetColor(index) }"
+              >
+                <i></i>{{ monitorShortLabel(item.suggestedIntent) }}
+              </span>
+            </div>
+            <div class="monitor-column-chart__plot">
+              <article
+                v-for="(item, index) in monitorUnmetNeedChart"
+                :key="item.key"
+                :style="{ '--chart-color': monitorUnmetColor(index) }"
+              >
+                <strong>{{ item.count }}</strong>
+                <div>
+                  <i :style="{ height: monitorColumnHeight(item.count, monitorUnmetNeedPeak) }"></i>
+                </div>
+                <span>{{ monitorShortLabel(item.suggestedIntent) }}</span>
+              </article>
+            </div>
+          </div>
+
+          <div v-if="monitor.unmetNeeds.items.length" class="monitor-unmet-list">
+            <article v-for="item in monitor.unmetNeeds.items.slice(0, 8)" :key="item.key">
+              <header>
+                <div>
+                  <strong>{{ item.suggestedIntent }}</strong>
+                  <span>{{ item.suggestedCategory }} · {{ item.primaryRole }} · {{ item.users }} 人 / {{ item.count }} 次</span>
+                </div>
+                <b :class="`monitor-priority monitor-priority--${item.priority}`">{{ monitorPriorityText(item.priority) }}</b>
+              </header>
+              <p>{{ item.reason }}</p>
+              <div class="monitor-unmet-tags">
+                <span>{{ item.suggestedAction }}</span>
+                <span v-for="keyword in item.suggestedKeywords" :key="`${item.key}-${keyword}`">{{ keyword }}</span>
+              </div>
+              <details>
+                <summary>查看原始聊天样例</summary>
+                <div v-for="sample in item.samples" :key="`${item.key}-${sample.userId}-${sample.createdAt}`">
+                  <strong>{{ sample.queryText }}</strong>
+                  <span>{{ sample.userName }} · {{ sample.userRole }}{{ sample.college ? ` · ${sample.college}` : '' }} · {{ sample.createdAt }}</span>
+                  <small>{{ sample.responseText }}</small>
+                </div>
+              </details>
+            </article>
           </div>
         </section>
       </template>

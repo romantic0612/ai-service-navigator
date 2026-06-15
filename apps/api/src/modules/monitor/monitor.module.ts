@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AiMemoryModule } from '../ai-memory/ai-memory.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { MonitorController } from './monitor.controller';
 import { AssistantMonitorController } from './assistant-monitor.controller';
@@ -7,7 +8,7 @@ import { MonitorAuthService } from './monitor-auth.service';
 import { MonitorAuthGuard } from './monitor-auth.guard';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AiMemoryModule],
   controllers: [MonitorController, AssistantMonitorController],
   providers: [MonitorService, MonitorAuthService, MonitorAuthGuard],
 })
