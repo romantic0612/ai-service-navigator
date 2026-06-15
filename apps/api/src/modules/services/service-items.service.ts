@@ -327,26 +327,63 @@ export class ServiceItemsService {
       return true;
     }
 
-    const normalizedRole = role.trim();
-    const allowedRoles = targetRoles.map((targetRole) => targetRole.trim());
+    const allowedRoles = targetRoles.map((targetRole) => targetRole.trim()).filter(Boolean);
 
-    if (allowedRoles.some((allowedRole) => ['全部人员', '全体人员', '所有人员', '师生', '全校师生'].includes(allowedRole))) {
+    if (allowedRoles.some((allowedRole) => this.isUniversalRole(allowedRole))) {
       return true;
     }
 
-    if (allowedRoles.includes(normalizedRole)) {
-      return true;
-    }
+    const profileRoles = this.extractStandardRoles(role);
+    const allowedStandardRoles = new Set(allowedRoles.flatMap((allowedRole) => this.extractStandardRoles(allowedRole)));
 
-    if (allowedRoles.some((allowedRole) => allowedRole.includes(normalizedRole))) {
-      return true;
-    }
-
-    if (normalizedRole === '教师' && allowedRoles.includes('教职工')) {
+    if (profileRoles.some((profileRole) => allowedStandardRoles.has(profileRole))) {
       return true;
     }
 
     return false;
+  }
+
+  private isUniversalRole(roleText: string): boolean {
+    return ['全部人员', '全体人员', '所有人员', '所有人', '不限身份', '全校人员'].some((universalRole) =>
+      roleText.includes(universalRole),
+    );
+  }
+
+  private extractStandardRoles(roleText: string): string[] {
+    const normalizedRoleText = roleText.trim();
+    const roles = new Set<string>();
+
+    if (!normalizedRoleText) {
+      return [];
+    }
+
+    if (['师生', '全校师生', '在校师生'].some((roleAlias) => normalizedRoleText.includes(roleAlias))) {
+      roles.add('教职工');
+      roles.add('本科生');
+      roles.add('研究生');
+    }
+
+    if (['教职工', '教工', '教师', '老师'].some((roleAlias) => normalizedRoleText.includes(roleAlias))) {
+      roles.add('教职工');
+    }
+
+    if (['本科生', '本科'].some((roleAlias) => normalizedRoleText.includes(roleAlias))) {
+      roles.add('本科生');
+    }
+
+    if (['研究生', '硕士', '博士'].some((roleAlias) => normalizedRoleText.includes(roleAlias))) {
+      roles.add('研究生');
+    }
+
+    if (normalizedRoleText.includes('校友')) {
+      roles.add('校友');
+    }
+
+    if (['访客', '社会人员', '社会人士', '校外人员'].some((roleAlias) => normalizedRoleText.includes(roleAlias))) {
+      roles.add('访客');
+    }
+
+    return [...roles];
   }
 
   private toCard(item: DemoServiceItem): ServiceItemCard {
