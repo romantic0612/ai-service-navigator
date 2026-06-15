@@ -213,7 +213,7 @@ const apiMonitorBase = `${apiBaseUrl || ''}/monitor`;
 const apiMonitorFallbackBase = `${apiBaseUrl || ''}/assistant/monitor`;
 
 async function getMonitorWithFallback<T>(path: string, params?: Record<string, string | number>) {
-  const toParams = params ? { params } : {};
+  const toParams = params ? { params, withCredentials: true } : { withCredentials: true };
 
   try {
     const primaryResponse = await axios.get<unknown>(`${apiMonitorBase}${path}`, toParams);
@@ -233,20 +233,24 @@ async function getMonitorWithFallback<T>(path: string, params?: Record<string, s
 }
 
 export async function getMonitorSession(): Promise<MonitorAuthStatus> {
-  const response = await axios.get<MonitorAuthStatus>(`${apiMonitorFallbackBase}/session`);
+  const response = await axios.get<MonitorAuthStatus>(`${apiMonitorFallbackBase}/session`, { withCredentials: true });
   return response.data;
 }
 
 export async function loginMonitor(userId: string, accessCode?: string): Promise<MonitorLoginResult> {
-  const response = await axios.post<MonitorLoginResult>(`${apiMonitorFallbackBase}/login`, {
-    userId,
-    accessCode,
-  });
+  const response = await axios.post<MonitorLoginResult>(
+    `${apiMonitorFallbackBase}/login`,
+    {
+      userId,
+      accessCode,
+    },
+    { withCredentials: true },
+  );
   return response.data;
 }
 
 export async function logoutMonitor() {
-  const response = await axios.get<{ authorized: boolean }>(`${apiMonitorFallbackBase}/logout`);
+  const response = await axios.get<{ authorized: boolean }>(`${apiMonitorFallbackBase}/logout`, { withCredentials: true });
   return response.data;
 }
 
