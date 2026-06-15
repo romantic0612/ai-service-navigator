@@ -734,6 +734,126 @@ button {
   font-weight: 800;
 }
 
+.monitor-visual-board {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 138px;
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+  border: 1px solid rgba(159, 181, 188, 0.22);
+  border-radius: 22px;
+  padding: 16px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(234, 248, 244, 0.82)),
+    #ffffff;
+  box-shadow: 0 16px 38px rgba(25, 52, 64, 0.08);
+}
+
+.monitor-visual-board::before {
+  position: absolute;
+  inset: auto -26px -54px auto;
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  background: rgba(248, 177, 87, 0.16);
+  content: "";
+}
+
+.monitor-visual-board__copy {
+  position: relative;
+}
+
+.monitor-visual-board__copy span {
+  color: #63757c;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.monitor-visual-board__copy h2 {
+  margin: 5px 0 8px;
+  color: #142532;
+  font-size: 20px;
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+
+.monitor-visual-board__copy p {
+  margin: 0;
+  color: #50626b;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.monitor-orbit-visual {
+  position: relative;
+  width: 126px;
+  height: 126px;
+  justify-self: end;
+}
+
+.monitor-orbit-visual__ring {
+  position: absolute;
+  inset: 16px;
+  border: 1px dashed rgba(20, 111, 104, 0.45);
+  border-radius: 999px;
+  animation: monitorRotate 18s linear infinite;
+}
+
+.monitor-orbit-visual__core {
+  position: absolute;
+  inset: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  color: #ffffff;
+  background: linear-gradient(145deg, #0f746c, #1c8298);
+  box-shadow: 0 13px 24px rgba(20, 111, 104, 0.22);
+}
+
+.monitor-orbit-visual__core strong {
+  margin-top: -4px;
+  font-size: 12px;
+}
+
+.monitor-orbit-visual__node {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  min-width: 40px;
+  height: 24px;
+  border: 1px solid rgba(21, 111, 104, 0.16);
+  border-radius: 999px;
+  color: #176f68;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(25, 52, 64, 0.08);
+}
+
+.monitor-orbit-visual__node--top {
+  top: 0;
+  left: 43px;
+}
+
+.monitor-orbit-visual__node--right {
+  top: 51px;
+  right: 0;
+}
+
+.monitor-orbit-visual__node--bottom {
+  bottom: 0;
+  left: 43px;
+}
+
+.monitor-orbit-visual__node--left {
+  top: 51px;
+  left: 0;
+}
+
 .monitor-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -767,6 +887,50 @@ button {
   margin-top: 3px;
   font-size: 24px;
   line-height: 1;
+}
+
+.monitor-angle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.monitor-angle-grid article {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-height: 76px;
+  border: 1px solid rgba(159, 181, 188, 0.2);
+  border-radius: 17px;
+  padding: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(246, 251, 250, 0.82)),
+    #ffffff;
+  box-shadow: 0 12px 28px rgba(25, 52, 64, 0.06);
+}
+
+.monitor-angle-grid svg {
+  flex: 0 0 auto;
+  color: #17766d;
+}
+
+.monitor-angle-grid strong,
+.monitor-angle-grid span {
+  display: block;
+}
+
+.monitor-angle-grid strong {
+  color: #152935;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.monitor-angle-grid span {
+  margin-top: 5px;
+  color: #62737b;
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .monitor-card__heading {
@@ -814,6 +978,15 @@ button {
   background: #eaf5f3;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.monitor-list--rank i {
+  display: block;
+  height: 5px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #17766d, #51a7a8);
+  box-shadow: 0 5px 14px rgba(23, 118, 109, 0.18);
 }
 
 .quick-prompts {
@@ -902,6 +1075,25 @@ button {
   40% {
     opacity: 1;
     transform: translateY(-3px);
+  }
+}
+
+@keyframes monitorRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 420px) {
+  .monitor-visual-board {
+    grid-template-columns: 1fr;
+  }
+
+  .monitor-orbit-visual {
+    justify-self: center;
   }
 }
 

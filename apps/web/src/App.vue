@@ -4,12 +4,16 @@ import {
   BarChart3,
   Bot,
   Check,
+  Clock3,
   KeyRound,
+  Layers3,
   LockKeyhole,
+  MapPinned,
   SearchX,
   Send,
   ShieldCheck,
   Sparkles,
+  Target,
   TrendingUp,
   UserRound,
   UsersRound,
@@ -68,6 +72,22 @@ const monitorNoResultTotal = computed(
 const monitorSecondaryIssueTotal = computed(
   () => monitor.value?.secondaryAuthIssues.hotItems.reduce((sum, item) => sum + item.issues, 0) ?? 0,
 );
+const monitorAskTotal = computed(() => monitor.value?.roleStats.reduce((sum, item) => sum + item.askCount, 0) ?? 0);
+const monitorHitRate = computed(() => {
+  if (!monitorAskTotal.value) {
+    return 100;
+  }
+
+  return Math.max(0, Math.round(((monitorAskTotal.value - monitorNoResultTotal.value) / monitorAskTotal.value) * 100));
+});
+const monitorNoResultRate = computed(() => {
+  if (!monitorAskTotal.value) {
+    return 0;
+  }
+
+  return Math.round((monitorNoResultTotal.value / monitorAskTotal.value) * 100);
+});
+const monitorTopServicePeak = computed(() => Math.max(...(monitor.value?.topServices.map((item) => item.clicks) ?? [1]), 1));
 
 const quickPrompts = ['云盘', '体育场馆预约', '学生档案查询', '会议室预约'];
 
@@ -271,6 +291,14 @@ function dismissCandidate(candidate: ProfileUpdateCandidate) {
   savedCandidates.value.push(candidateKey(candidate));
 }
 
+function monitorBarWidth(value: number, total: number) {
+  if (!total) {
+    return '0%';
+  }
+
+  return `${Math.max(8, Math.round((value / total) * 100))}%`;
+}
+
 function defaultWelcomeMessages(): ChatMessage[] {
   return [
     {
@@ -350,6 +378,25 @@ function defaultWelcomeMessages(): ChatMessage[] {
           <span>实时快照</span>
         </section>
 
+        <section class="monitor-visual-board" aria-label="AI办事效果评估闭环">
+          <div class="monitor-visual-board__copy">
+            <span>Evaluation Loop</span>
+            <h2>从问题到推荐的闭环</h2>
+            <p>把访问、命中、失败和人群差异放在一张图里，后面首页痛点推荐就从这里长出来。</p>
+          </div>
+          <div class="monitor-orbit-visual" aria-hidden="true">
+            <div class="monitor-orbit-visual__ring"></div>
+            <div class="monitor-orbit-visual__core">
+              <Target :size="24" />
+              <strong>痛点</strong>
+            </div>
+            <span class="monitor-orbit-visual__node monitor-orbit-visual__node--top">时间</span>
+            <span class="monitor-orbit-visual__node monitor-orbit-visual__node--right">身份</span>
+            <span class="monitor-orbit-visual__node monitor-orbit-visual__node--bottom">业务</span>
+            <span class="monitor-orbit-visual__node monitor-orbit-visual__node--left">空间</span>
+          </div>
+        </section>
+
         <section class="monitor-metrics" aria-label="监测指标概览">
           <article>
             <TrendingUp :size="18" />
@@ -357,19 +404,50 @@ function defaultWelcomeMessages(): ChatMessage[] {
             <strong>{{ monitorTotalClicks }}</strong>
           </article>
           <article>
-            <SearchX :size="18" />
-            <span>无结果</span>
-            <strong>{{ monitorNoResultTotal }}</strong>
+            <Target :size="18" />
+            <span>AI命中率</span>
+            <strong>{{ monitorHitRate }}%</strong>
           </article>
           <article>
-            <UsersRound :size="18" />
-            <span>身份来源</span>
-            <strong>{{ monitor.roleStats.length }}</strong>
+            <SearchX :size="18" />
+            <span>无结果率</span>
+            <strong>{{ monitorNoResultRate }}%</strong>
           </article>
           <article>
             <ShieldCheck :size="18" />
             <span>入口异常</span>
             <strong>{{ monitorSecondaryIssueTotal }}</strong>
+          </article>
+        </section>
+
+        <section class="monitor-angle-grid" aria-label="多维评估方向">
+          <article>
+            <MapPinned :size="18" />
+            <div>
+              <strong>空间维度</strong>
+              <span>学院、校区、楼宇</span>
+            </div>
+          </article>
+          <article>
+            <Clock3 :size="18" />
+            <div>
+              <strong>时间维度</strong>
+              <span>日趋势、周环比、节点峰值</span>
+            </div>
+          </article>
+          <article>
+            <UsersRound :size="18" />
+            <div>
+              <strong>身份维度</strong>
+              <span>本科生、研究生、教职工</span>
+            </div>
+          </article>
+          <article>
+            <Layers3 :size="18" />
+            <div>
+              <strong>业务维度</strong>
+              <span>教务、后勤、信息化、图书</span>
+            </div>
           </article>
         </section>
 
@@ -388,6 +466,7 @@ function defaultWelcomeMessages(): ChatMessage[] {
               <div>
                 <strong>{{ item.title }}</strong>
                 <small>最新：{{ item.lastClick }}</small>
+                <i :style="{ width: monitorBarWidth(item.clicks, monitorTopServicePeak) }"></i>
               </div>
               <span>{{ item.clicks }} 次</span>
             </li>
