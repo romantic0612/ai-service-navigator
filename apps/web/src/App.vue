@@ -105,11 +105,13 @@ const monitorVisitorTrend = computed(() =>
   })),
 );
 const monitorVisitorPeak = computed(() => Math.max(...monitorVisitorTrend.value.map((item) => item.visitors), 1));
+const monitorStudentQuestionChart = computed(() => (monitor.value?.studentTopQuestions ?? []).slice(0, 8));
+const monitorTeacherQuestionChart = computed(() => (monitor.value?.teacherTopQuestions ?? []).slice(0, 8));
 const monitorStudentQuestionPeak = computed(() =>
-  Math.max(...(monitor.value?.studentTopQuestions.map((item) => item.count) ?? [1]), 1),
+  Math.max(...monitorStudentQuestionChart.value.map((item) => item.count), 1),
 );
 const monitorTeacherQuestionPeak = computed(() =>
-  Math.max(...(monitor.value?.teacherTopQuestions.map((item) => item.count) ?? [1]), 1),
+  Math.max(...monitorTeacherQuestionChart.value.map((item) => item.count), 1),
 );
 
 const quickPrompts = ['云盘', '体育场馆预约', '学生档案查询', '会议室预约'];
@@ -471,7 +473,7 @@ function defaultWelcomeMessages(): ChatMessage[] {
           </div>
         </section>
 
-        <section class="monitor-card">
+        <section class="monitor-card monitor-card--question-chart">
           <div class="monitor-card__heading">
             <div>
               <span>Student Questions</span>
@@ -480,19 +482,27 @@ function defaultWelcomeMessages(): ChatMessage[] {
             <small>{{ monitor.days }} 天</small>
           </div>
           <p v-if="!monitor.studentTopQuestions.length" class="monitor-empty">暂无学生提问数据</p>
-          <ul v-else class="monitor-list monitor-list--questions">
-            <li v-for="item in monitor.studentTopQuestions" :key="item.queryText">
-              <div>
-                <strong>{{ item.queryText }}</strong>
-                <small>{{ item.users }} 人问过 · 最近 {{ item.latestAt }}</small>
-                <i :style="{ width: monitorBarWidth(item.count, monitorStudentQuestionPeak) }"></i>
+          <div v-else class="monitor-question-chart" aria-label="学生常问问题柱状图">
+            <article v-for="(item, index) in monitorStudentQuestionChart" :key="item.queryText">
+              <div class="monitor-question-chart__label">
+                <span>{{ index + 1 }}</span>
+                <div>
+                  <strong>{{ item.queryText }}</strong>
+                  <small>{{ item.users }} 人问过 · 最近 {{ item.latestAt }}</small>
+                </div>
               </div>
-              <span>{{ item.count }} 次</span>
-            </li>
-          </ul>
+              <div class="monitor-question-chart__bar">
+                <i :style="{ width: monitorBarWidth(item.count, monitorStudentQuestionPeak) }"></i>
+                <b>{{ item.count }} 次</b>
+              </div>
+            </article>
+            <p v-if="monitor.studentTopQuestions.length > monitorStudentQuestionChart.length" class="monitor-chart-note">
+              已展示前 {{ monitorStudentQuestionChart.length }} 个高频问题
+            </p>
+          </div>
         </section>
 
-        <section class="monitor-card">
+        <section class="monitor-card monitor-card--question-chart">
           <div class="monitor-card__heading">
             <div>
               <span>Teacher Questions</span>
@@ -501,17 +511,26 @@ function defaultWelcomeMessages(): ChatMessage[] {
             <small>{{ monitor.days }} 天</small>
           </div>
           <p v-if="!monitor.teacherTopQuestions.length" class="monitor-empty">暂无老师提问数据</p>
-          <ul v-else class="monitor-list monitor-list--questions">
-            <li v-for="item in monitor.teacherTopQuestions" :key="item.queryText">
-              <div>
-                <strong>{{ item.queryText }}</strong>
-                <small>{{ item.users }} 人问过 · 最近 {{ item.latestAt }}</small>
-                <i :style="{ width: monitorBarWidth(item.count, monitorTeacherQuestionPeak) }"></i>
+          <div v-else class="monitor-question-chart monitor-question-chart--teacher" aria-label="老师常问问题柱状图">
+            <article v-for="(item, index) in monitorTeacherQuestionChart" :key="item.queryText">
+              <div class="monitor-question-chart__label">
+                <span>{{ index + 1 }}</span>
+                <div>
+                  <strong>{{ item.queryText }}</strong>
+                  <small>{{ item.users }} 人问过 · 最近 {{ item.latestAt }}</small>
+                </div>
               </div>
-              <span>{{ item.count }} 次</span>
-            </li>
-          </ul>
-        </section>      </template>
+              <div class="monitor-question-chart__bar">
+                <i :style="{ width: monitorBarWidth(item.count, monitorTeacherQuestionPeak) }"></i>
+                <b>{{ item.count }} 次</b>
+              </div>
+            </article>
+            <p v-if="monitor.teacherTopQuestions.length > monitorTeacherQuestionChart.length" class="monitor-chart-note">
+              已展示前 {{ monitorTeacherQuestionChart.length }} 个高频问题
+            </p>
+          </div>
+        </section>
+      </template>
     </template>
 
     <template v-else>

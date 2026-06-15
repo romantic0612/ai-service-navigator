@@ -1163,6 +1163,111 @@ button {
   white-space: nowrap;
 }
 
+.monitor-card--question-chart {
+  padding: 16px;
+}
+
+.monitor-question-chart {
+  display: grid;
+  gap: 13px;
+}
+
+.monitor-question-chart article {
+  display: grid;
+  gap: 8px;
+}
+
+.monitor-question-chart__label {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.monitor-question-chart__label > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  color: #ffffff;
+  background: #0f7d78;
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 8px 16px rgba(18, 111, 104, 0.18);
+}
+
+.monitor-question-chart__label strong,
+.monitor-question-chart__label small {
+  display: block;
+  min-width: 0;
+}
+
+.monitor-question-chart__label strong {
+  overflow: hidden;
+  color: #162834;
+  font-size: 14px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monitor-question-chart__label small {
+  margin-top: 3px;
+  overflow: hidden;
+  color: #73848d;
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monitor-question-chart__bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding-left: 36px;
+}
+
+.monitor-question-chart__bar i {
+  display: block;
+  height: 13px;
+  min-width: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f2a63a, #0f7d78);
+  box-shadow: 0 7px 15px rgba(15, 125, 120, 0.15);
+}
+
+.monitor-question-chart__bar b {
+  min-width: 46px;
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #0f716b;
+  background: #e8f5f3;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.monitor-question-chart--teacher .monitor-question-chart__label > span {
+  background: #1c6c9a;
+  box-shadow: 0 8px 16px rgba(28, 108, 154, 0.16);
+}
+
+.monitor-question-chart--teacher .monitor-question-chart__bar i {
+  background: linear-gradient(90deg, #f0a33a, #1c6c9a);
+}
+
+.monitor-chart-note {
+  margin: 2px 0 0;
+  color: #75868e;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: right;
+}
+
 .monitor-hero--visitors {
   background:
     linear-gradient(135deg, rgba(9, 79, 75, 0.98), rgba(22, 126, 145, 0.95)),
