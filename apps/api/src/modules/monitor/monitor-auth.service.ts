@@ -151,7 +151,12 @@ export class MonitorAuthService {
     if (!target) {
       return null;
     }
-    return target.substring(name.length + 1);
+    const rawValue = target.substring(name.length + 1);
+    try {
+      return decodeURIComponent(rawValue);
+    } catch {
+      return rawValue;
+    }
   }
 }
 
