@@ -98,3 +98,18 @@ export async function saveProfileMemory(candidate: ProfileUpdateCandidate, userI
 
   return response.data;
 }
+
+export async function recordUserEvent(
+  userId: string,
+  eventType: 'open_service' | 'view_service' | 'open_asset',
+  serviceItemId?: string,
+  metadata?: Record<string, unknown>,
+) {
+  const response = await axios.post<{ recorded: boolean; reason?: string }>(`${apiBaseUrl}/profiles/${userId}/events`, {
+    eventType,
+    serviceItemId,
+    metadata,
+  });
+
+  return response.data;
+}

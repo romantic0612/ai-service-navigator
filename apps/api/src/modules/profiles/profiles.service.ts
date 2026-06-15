@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OAuthProfileDto } from './oauth-profile.dto';
 import { ProfileSummary } from './profile-summary.types';
+import { RecordEventDto } from './record-event.dto';
 import { SaveMemoryDto } from './save-memory.dto';
 
 export type NormalizedOAuthProfile = {
@@ -187,6 +188,24 @@ export class ProfilesService {
       });
     } catch {
       // The assistant remains usable in local mock mode when MySQL is not running.
+    }
+  }
+
+  async recordUserEvent(userId: string, dto: RecordEventDto) {
+    try {
+      await this.ensureUserProfile(userId);
+      await this.prisma.userEvent.create({
+        data: {
+          userId,
+          eventType: dto.eventType,
+          serviceItemId: dto.serviceItemId,
+          metadata: dto.metadata as any,
+        },
+      });
+
+      return { recorded: true };
+    } catch {
+      return { recorded: false, reason: 'database_unavailable' };
     }
   }
 

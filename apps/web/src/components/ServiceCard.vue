@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ChevronDown, ChevronUp, Clock3, ExternalLink, Phone, UserRound } from '@lucide/vue';
 import { ref } from 'vue';
-import type { ServiceCard } from '../services/assistant';
+import { recordUserEvent, type ServiceCard } from '../services/assistant';
 
 type TextPart = {
   type: 'text' | 'link';
@@ -10,13 +10,25 @@ type TextPart = {
 
 const props = defineProps<{
   card: ServiceCard;
+  userId?: string;
 }>();
 
 const expanded = ref(false);
 const urlPattern = /https?:\/\/[^\s，。；;、）)]+/g;
 
 function openService() {
-  window.location.href = props.card.entryUrl;
+  const go = () => {
+    window.location.href = props.card.entryUrl;
+  };
+
+  if (!props.userId) {
+    go();
+    return;
+  }
+
+  void recordUserEvent(props.userId, 'open_service', props.card.id, { title: props.card.title })
+    .catch(() => undefined)
+    .finally(go);
 }
 
 function openUrl(url: string) {

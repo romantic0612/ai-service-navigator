@@ -26,7 +26,7 @@ export class AssistantService {
     await this.profilesService.recordAskEvent(userId, message);
 
     if (this.aiMemoryService.isGuideQuery(message)) {
-      const guide = await this.aiMemoryService.generateGuide(profile);
+      const guide = await this.aiMemoryService.generateGuide(profile, message);
       return {
         action: 'guide',
         message: guide.reply,

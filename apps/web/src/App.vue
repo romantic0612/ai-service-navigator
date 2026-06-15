@@ -178,7 +178,12 @@ function defaultWelcomeMessages(): ChatMessage[] {
         <div class="message-bubble">
           <p>{{ message.content }}</p>
           <div v-if="message.reply?.serviceCards?.length" class="service-list">
-            <ServiceCard v-for="card in message.reply.serviceCards" :key="card.id" :card="card" />
+            <ServiceCard
+              v-for="card in message.reply.serviceCards"
+              :key="card.id"
+              :card="card"
+              :user-id="currentUserId || 'demo-user'"
+            />
           </div>
           <div v-if="message.reply?.guideSuggestions?.length" class="guide-suggestions">
             <button

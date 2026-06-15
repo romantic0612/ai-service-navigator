@@ -17,6 +17,14 @@ const GUIDE_QUERIES = [
   '如何使用',
   '我不知道办什么',
   '能做什么',
+  '换一个事项',
+  '换个事项',
+  '换哪一个',
+  '换一个',
+  '看看热门服务',
+  '热门服务',
+  '看看常用服务',
+  '常用服务',
 ];
 
 @Injectable()
@@ -31,25 +39,31 @@ export class AiMemoryService {
     return GUIDE_QUERIES.some((query) => normalized === query || normalized.includes(query));
   }
 
-  async generateGuide(profile: ProfileSummary): Promise<GuideReply> {
+  async generateGuide(profile: ProfileSummary, message = ''): Promise<GuideReply> {
     const recentMemories = await this.getRecentLowSensitivityMemories(profile.userId, 3);
+    const popularServices = await this.getPopularServiceTitles(5);
     const modelResult = await this.miniMaxService.jsonChat(this.guidePrompt(), {
       profile,
+      current_message: message,
       recent_memories: recentMemories,
+      recent_common_services: popularServices,
     });
+    const fallback = this.fallbackGuide(profile, recentMemories, popularServices, message);
 
     return {
-      reply: this.toOptionalString(modelResult?.reply) ?? this.fallbackGuide(profile, recentMemories).reply,
-      suggestions: this.withFallbackStrings(this.toStringArray(modelResult?.suggestions).slice(0, 4), this.fallbackGuide(profile, recentMemories).suggestions),
+      reply: this.toOptionalString(modelResult?.reply) ?? fallback.reply,
+      suggestions: this.withFallbackStrings(this.toStringArray(modelResult?.suggestions).slice(0, 4), fallback.suggestions),
     };
   }
 
   async generateOpening(userId: string, profile: ProfileSummary): Promise<OpeningReply> {
     const recentMemories = await this.getRecentLowSensitivityMemories(userId, 5);
-    const fallback = this.fallbackOpening(profile, recentMemories);
+    const popularServices = await this.getPopularServiceTitles(3);
+    const fallback = this.fallbackOpening(profile, recentMemories, popularServices);
     const modelResult = await this.miniMaxService.jsonChat(this.openingPrompt(), {
       profile,
       recent_memories: recentMemories,
+      recent_common_services: popularServices,
     });
 
     return {
@@ -210,41 +224,104 @@ export class AiMemoryService {
     };
   }
 
-  private fallbackGuide(profile: ProfileSummary, recentMemories: Array<Record<string, unknown>>): GuideReply {
+  private fallbackGuide(
+    profile: ProfileSummary,
+    recentMemories: Array<Record<string, unknown>>,
+    popularServices: string[],
+    message: string,
+  ): GuideReply {
+    const commonSuggestions = popularServices.length ? popularServices.slice(0, 3) : ['校园网账号服务', '电子签章服务', '校友卡'];
+    if (['换一个事项', '换个事项', '换哪一个', '换一个'].some((text) => message.includes(text))) {
+      return {
+        reply: '可以。你想换成哪类事情？也可以直接点下面这些近期常用事项。',
+        suggestions: commonSuggestions,
+      };
+    }
+
     const recentService = this.toOptionalString(recentMemories[0]?.memoryValue)?.split('｜')[0];
     if (recentService) {
       return {
         reply: `你好，我可以继续帮你处理“${recentService}”，也可以直接帮你找新的学校办事入口。你不用记事项名称，直接说想办什么就行。`,
-        suggestions: [`继续查看${recentService}`, '校园网账号服务', '电子签章服务'],
+        suggestions: [`继续查看${recentService}`, ...commonSuggestions].slice(0, 4),
       };
     }
 
     if (profile.role === '教职工') {
       return {
         reply: '你好，我可以帮你快速找到教职工常用办事入口，比如请假出差、电子签章、会议室预约、科研发票、部门运维账号申请。你可以直接说想办的事。',
-        suggestions: ['教职工请假', '电子签章服务', '部门运维账号申请'],
+        suggestions: popularServices.length ? commonSuggestions : ['教职工请假', '电子签章服务', '部门运维账号申请'],
       };
     }
 
     return {
       reply: '你好，我可以帮你快速找到学校线上办事入口。你可以直接说“校园网账号怎么充值”“学生档案去哪查”“校友卡怎么办”。',
-      suggestions: ['校园网账号服务', '学生档案去向查询', '校友卡'],
+      suggestions: popularServices.length ? commonSuggestions : ['校园网账号服务', '学生档案去向查询', '校友卡'],
     };
   }
 
-  private fallbackOpening(profile: ProfileSummary, recentMemories: Array<Record<string, unknown>>): OpeningReply {
+  private fallbackOpening(profile: ProfileSummary, recentMemories: Array<Record<string, unknown>>, popularServices: string[]): OpeningReply {
     const recentService = this.toOptionalString(recentMemories[0]?.memoryValue)?.split('｜')[0];
+    const commonActions = popularServices.length ? popularServices.slice(0, 2) : ['换一个事项', '校园网账号服务'];
     if (recentService) {
       return {
         opening: `上次你查了“${recentService}”，需要继续查看入口、流程或联系人吗？`,
-        quickActions: [`继续查看${recentService}`, '换一个事项', '看看热门服务'],
+        quickActions: [`继续查看${recentService}`, '换一个事项', ...commonActions].slice(0, 3),
       };
     }
 
     return {
       opening: `${profile.name ? `${profile.name}，` : ''}你好，可以直接告诉我你想办什么，我会优先给你学校数据库里的可靠入口。`,
-      quickActions: ['校园网账号服务', '电子签章服务', '校友卡'],
+      quickActions: popularServices.length ? popularServices.slice(0, 3) : ['校园网账号服务', '电子签章服务', '校友卡'],
     };
+  }
+
+  private async getPopularServiceTitles(take: number): Promise<string[]> {
+    try {
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const events = await this.prisma.userEvent.findMany({
+        where: {
+          eventType: 'open_service',
+          serviceItemId: { not: null },
+          createdAt: { gte: since },
+        },
+        select: { serviceItemId: true },
+        take: 500,
+      });
+      const counts = new Map<string, number>();
+      for (const event of events) {
+        if (event.serviceItemId) {
+          counts.set(event.serviceItemId, (counts.get(event.serviceItemId) ?? 0) + 1);
+        }
+      }
+
+      const popularIds = [...counts.entries()]
+        .sort((left, right) => right[1] - left[1])
+        .slice(0, take)
+        .map(([serviceItemId]) => serviceItemId);
+
+      if (popularIds.length > 0) {
+        const items = await this.prisma.serviceItem.findMany({
+          where: { id: { in: popularIds }, status: 'ENABLED' },
+          select: { id: true, title: true },
+        });
+        const titleById = new Map(items.map((item) => [item.id, item.title]));
+        return popularIds.map((id) => titleById.get(id)).filter((title): title is string => Boolean(title));
+      }
+
+      const handlerCountItems = await this.prisma.serviceItem.findMany({
+        where: {
+          status: 'ENABLED',
+          handlerCount: { not: null },
+        },
+        orderBy: { handlerCount: 'desc' },
+        select: { title: true },
+        take,
+      });
+
+      return handlerCountItems.map((item) => item.title);
+    } catch {
+      return [];
+    }
   }
 
   private hasSensitiveService(serviceCards: ServiceItemCard[]): boolean {
@@ -389,6 +466,7 @@ export class AiMemoryService {
     return [
       '你是安徽农业大学 AI 办事助手的引导模型。',
       '用户没有明确办事事项时，根据 OAuth 画像、低敏记忆，生成一句自然、简短的引导。',
+      '如果 current_message 表示“换一个事项”，要追问用户想换哪个方向，并给 recent_common_services 中的候选。',
       '不要编造办事链接，不要说你能自动代办。',
       '输出严格 JSON：{"reply":"...","suggestions":["..."]}。',
     ].join('\n');
