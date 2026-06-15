@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { AiMemoryService } from '../ai-memory/ai-memory.service';
 import { ProfileSummary } from '../profiles/profile-summary.types';
 import { ServiceItemCard } from '../services/service-item.types';
 import { DifyService } from '../dify/dify.service';
@@ -12,11 +13,27 @@ export class AssistantService {
     private readonly profilesService: ProfilesService,
     private readonly serviceItemsService: ServiceItemsService,
     private readonly difyService: DifyService,
+    private readonly aiMemoryService: AiMemoryService,
   ) {}
+
+  async opening(userId: string) {
+    const profile = await this.profilesService.getSummary(userId);
+    return this.aiMemoryService.generateOpening(userId, profile);
+  }
 
   async reply(userId: string, message: string): Promise<AssistantReply> {
     const profile = await this.profilesService.getSummary(userId);
     await this.profilesService.recordAskEvent(userId, message);
+
+    if (this.aiMemoryService.isGuideQuery(message)) {
+      const guide = await this.aiMemoryService.generateGuide(profile);
+      return {
+        action: 'guide',
+        message: guide.reply,
+        guideSuggestions: guide.suggestions,
+        profileUpdateCandidates: [],
+      };
+    }
 
     const difyIntent = await this.difyService.recognizeIntent(message, profile);
     const searchQuery = [message, difyIntent?.intent, difyIntent?.category, ...(difyIntent?.keywords ?? [])]
@@ -48,17 +65,33 @@ export class AssistantService {
     }
 
     if (searchResult.items.length === 0 && roleMismatchResult?.items.length) {
+      const messageText = this.buildRoleMismatchMessage(profile, serviceCards);
+      this.aiMemoryService.processTurnInBackground(profile, {
+        userId,
+        message,
+        replyMessage: messageText,
+        serviceCards,
+      });
+
       return {
         action: 'role_mismatch',
-        message: this.buildRoleMismatchMessage(profile, serviceCards),
+        message: messageText,
         serviceCards,
         profileUpdateCandidates,
       };
     }
 
+    const messageText = this.buildReplyMessage(serviceCards.length, Boolean(difyIntent?.intent), difyIntent?.intent);
+    this.aiMemoryService.processTurnInBackground(profile, {
+      userId,
+      message,
+      replyMessage: messageText,
+      serviceCards,
+    });
+
     return {
       action: 'recommend_service',
-      message: this.buildReplyMessage(serviceCards.length, Boolean(difyIntent?.intent), difyIntent?.intent),
+      message: messageText,
       serviceCards,
       profileUpdateCandidates,
     };

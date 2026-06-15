@@ -228,3 +228,22 @@ MySQL 接通后，会把标准化用户画像写入 `user_profiles`。
 2. 在 Dify 建办事意图识别 Workflow，并配置 `DIFY_INTENT_API_KEY`。
 3. 支持从 Excel / CSV / 飞书表格导入第一批事项。
 4. 接真实 OAuth 后在服务器联调登录闭环。
+
+## MiniMax 记忆与引导
+
+系统预留了 MiniMax 2.5 接入，定位不是生成办事事实，而是做体验层能力：
+
+1. **泛问候引导**：当用户输入“你好”“你能干什么”“怎么用”等没有明确办事事项的问题时，返回身份相关的引导话术和示例事项。
+2. **离线记忆提取**：一次问答命中办事卡片后，后台异步整理低敏记忆，写入 `user_memories`，并把常用分类等偏好写入 `user_preference_profiles.custom_tags`。
+3. **下次开场承接**：用户下次进入助手时，可调用 `GET /assistant/opening/:userId`，根据低敏历史记忆生成一句轻量承接语。
+
+敏感事项不会主动承接，例如心理咨询、举报、医疗互助、困难资助等。最终办事入口、联系人、材料、流程仍然只来自 MySQL 事项库，不由 MiniMax 生成。
+
+MiniMax 环境变量：
+
+```env
+MINIMAX_API_BASE_URL=""
+MINIMAX_API_KEY=""
+MINIMAX_MODEL="minimax-2.5"
+MINIMAX_TIMEOUT_MS=12000
+```

@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { AssistantMessageDto } from './assistant.dto';
 import { AssistantService } from './assistant.service';
 
@@ -9,5 +9,10 @@ export class AssistantController {
   @Post('message')
   reply(@Body() dto: AssistantMessageDto) {
     return this.assistantService.reply(dto.userId, dto.message);
+  }
+
+  @Get('opening/:userId')
+  opening(@Param('userId') userId: string) {
+    return this.assistantService.opening(userId);
   }
 }

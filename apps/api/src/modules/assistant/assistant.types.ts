@@ -2,6 +2,7 @@ import { ServiceItemCard } from '../services/service-item.types';
 
 export type AssistantAction =
   | 'clarify'
+  | 'guide'
   | 'recommend_service'
   | 'role_mismatch'
   | 'no_reliable_result';
@@ -20,6 +21,7 @@ export type AssistantReply = {
   message: string;
   clarifyQuestion?: string;
   clarifyOptions?: string[];
+  guideSuggestions?: string[];
   serviceCards?: ServiceItemCard[];
   profileUpdateCandidates?: ProfileUpdateCandidate[];
 };
