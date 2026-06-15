@@ -160,47 +160,50 @@ export async function recordSecondaryAuthIssue(userId: string, serviceItemId: st
   return response.data;
 }
 
-export async function getMonitorOverview(days = 30): Promise<MonitorOverview> {
-  const response = await axios.get<MonitorOverview>(`${apiBaseUrl}/monitor/overview`, {
-    params: { days },
-  });
+const apiMonitorBase = `${apiBaseUrl || ''}/monitor`;
+const apiMonitorFallbackBase = `${apiBaseUrl || ''}/assistant/monitor`;
 
-  return response.data;
+async function getMonitorWithFallback<T>(path: string, params?: Record<string, string | number>) {
+  const toParams = params ? { params } : {};
+
+  try {
+    const primaryResponse = await axios.get<unknown>(`${apiMonitorBase}${path}`, toParams);
+    const primaryData = primaryResponse.data;
+    const contentType = String(primaryResponse.headers['content-type'] || '').toLowerCase();
+    const hasJson = contentType.includes('application/json');
+    const isJsonLike = hasJson || (typeof primaryData === 'object' && primaryData !== null);
+    const isHtml = typeof primaryData === 'string' && primaryData.trim().startsWith('<!doctype html>');
+    if (isJsonLike && !isHtml) {
+      return primaryData as T;
+    }
+    throw new Error('monitor api fallback to html');
+  } catch {
+    const fallbackResponse = await axios.get<T>(`${apiMonitorFallbackBase}${path}`, toParams);
+    return fallbackResponse.data;
+  }
+}
+
+export async function getMonitorOverview(days = 30): Promise<MonitorOverview> {
+  return getMonitorWithFallback<MonitorOverview>('/overview', { days });
 }
 
 export async function getMonitorServiceClickRank(days = 30, limit = 20): Promise<MonitorServiceClickItem[]> {
-  const response = await axios.get<MonitorServiceClickItem[]>(`${apiBaseUrl}/monitor/service-click-rank`, {
-    params: { days, limit },
-  });
-
-  return response.data;
+  return getMonitorWithFallback<MonitorServiceClickItem[]>('/service-click-rank', { days, limit });
 }
 
 export async function getMonitorRoleStats(days = 30): Promise<MonitorRoleStat[]> {
-  const response = await axios.get<MonitorRoleStat[]>(`${apiBaseUrl}/monitor/role-stats`, {
-    params: { days },
-  });
-
-  return response.data;
+  return getMonitorWithFallback<MonitorRoleStat[]>('/role-stats', { days });
 }
 
 export async function getMonitorNoResultQuestions(days = 30, limit = 30): Promise<MonitorNoResultItem[]> {
-  const response = await axios.get<MonitorNoResultItem[]>(`${apiBaseUrl}/monitor/no-result-questions`, {
-    params: { days, limit },
-  });
-
-  return response.data;
+  return getMonitorWithFallback<MonitorNoResultItem[]>('/no-result-questions', { days, limit });
 }
 
 export async function getMonitorSecondaryAuthIssues(
   days = 30,
   limit = 50,
 ): Promise<MonitorAuthIssue> {
-  const response = await axios.get<MonitorAuthIssue>(`${apiBaseUrl}/monitor/secondary-auth-issues`, {
-    params: { days, limit },
-  });
-
-  return response.data;
+  return getMonitorWithFallback<MonitorAuthIssue>('/secondary-auth-issues', { days, limit });
 }
 
 export async function recordUserEvent(
