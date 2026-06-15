@@ -14,7 +14,6 @@ type MonitorListOptions = MonitorRangeOptions & {
 export class MonitorService {
   private readonly defaultDays = 30;
   private readonly maxLimit = 200;
-  private readonly timezone = process.env.APP_TIMEZONE || 'Asia/Shanghai';
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -56,7 +55,7 @@ export class MonitorService {
       visitorSummary,
       studentTopQuestions,
       teacherTopQuestions,
-      updatedAt: this.formatDisplayTime(new Date()),
+      updatedAt: this.formatRuntimeTime(new Date()),
     };
   }
 
@@ -441,8 +440,17 @@ export class MonitorService {
   }
 
   private formatDisplayTime(date: Date) {
+    // MySQL DATETIME values are already stored in the database session timezone.
+    // Formatting them again with Asia/Shanghai would shift displayed monitor times by +8 hours.
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return `${date.getUTCFullYear()}/${pad(date.getUTCMonth() + 1)}/${pad(date.getUTCDate())} ${pad(
+      date.getUTCHours(),
+    )}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+  }
+
+  private formatRuntimeTime(date: Date) {
     return new Intl.DateTimeFormat('zh-CN', {
-      timeZone: this.timezone,
+      timeZone: process.env.APP_TIMEZONE || 'Asia/Shanghai',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
