@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { formatShanghaiTimestamp } from './common/time';
 
 @Controller()
 export class HealthController {
@@ -7,7 +8,7 @@ export class HealthController {
     return {
       status: 'ok',
       service: 'ai-service-navigator-api',
-      timestamp: new Date().toISOString(),
+      timestamp: formatShanghaiTimestamp(),
     };
   }
 }

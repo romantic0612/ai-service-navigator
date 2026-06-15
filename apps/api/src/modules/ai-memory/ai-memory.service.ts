@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { databaseDateAfterDays, databaseNow } from '../../common/time';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfileSummary } from '../profiles/profile-summary.types';
 import { ServiceItemCard } from '../services/service-item.types';
@@ -127,7 +128,8 @@ export class AiMemoryService {
         continue;
       }
 
-      const expiresAt = memory.expiresDays ? new Date(Date.now() + memory.expiresDays * 24 * 60 * 60 * 1000) : undefined;
+      const now = databaseNow();
+      const expiresAt = memory.expiresDays ? databaseDateAfterDays(memory.expiresDays) : undefined;
       const memoryValue = memory.summary ? `${memory.value}｜${memory.summary}` : memory.value;
 
       await (this.prisma.userMemory as any).upsert({
@@ -147,12 +149,15 @@ export class AiMemoryService {
           source: 'INFERRED_FROM_CHAT',
           sensitivity: this.toPrismaSensitivity(memory.sensitivity),
           expiresAt,
+          createdAt: now,
+          updatedAt: now,
         },
         update: {
           confidence: memory.confidence,
           source: 'INFERRED_FROM_CHAT',
           sensitivity: this.toPrismaSensitivity(memory.sensitivity),
           expiresAt,
+          updatedAt: now,
         },
       });
     }
@@ -178,7 +183,7 @@ export class AiMemoryService {
         key: update.key,
         value: update.value,
         confidence: update.confidence,
-        updatedAt: new Date().toISOString(),
+        updatedAt: databaseNow().toISOString(),
       };
 
       if (index >= 0) {
@@ -194,10 +199,12 @@ export class AiMemoryService {
         userId,
         customTags: mergedTags as any,
         updatedBy: 'ai',
+        updatedAt: databaseNow(),
       },
       update: {
         customTags: mergedTags as any,
         updatedBy: 'ai',
+        updatedAt: databaseNow(),
       },
     });
   }
@@ -411,6 +418,8 @@ export class AiMemoryService {
       create: {
         userId,
         source: 'mock',
+        createdAt: databaseNow(),
+        updatedAt: databaseNow(),
       },
       update: {},
     });

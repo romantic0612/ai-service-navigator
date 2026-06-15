@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { databaseNow } from '../../common/time';
 import { PrismaService } from '../prisma/prisma.service';
 import { OAuthProfileDto } from './oauth-profile.dto';
 import { ProfileSummary } from './profile-summary.types';
@@ -93,6 +94,7 @@ export class ProfilesService {
   async upsertOAuthProfile(payload: OAuthProfileDto): Promise<NormalizedOAuthProfile> {
     const profile = this.normalizeOAuthProfile(payload);
     const birthDate = profile.birthDate ? new Date(profile.birthDate) : undefined;
+    const now = databaseNow();
 
     await this.prisma.userProfile.upsert({
       where: { userId: profile.userId },
@@ -110,6 +112,8 @@ export class ProfilesService {
         birthDate,
         oauthRaw: profile.oauthRaw,
         source: 'oauth',
+        createdAt: now,
+        updatedAt: now,
       },
       update: {
         name: profile.name,
@@ -124,6 +128,7 @@ export class ProfilesService {
         birthDate,
         oauthRaw: profile.oauthRaw,
         source: 'oauth',
+        updatedAt: now,
       },
     });
 
@@ -149,6 +154,7 @@ export class ProfilesService {
         source: 'USER_CONFIRMED',
         sensitivity: this.toPrismaSensitivity(dto.sensitivity),
       };
+      const now = databaseNow();
       const memory = existingMemory
         ? await (this.prisma.userMemory as any).update({
             where: { id: existingMemory.id },
@@ -156,11 +162,14 @@ export class ProfilesService {
               confidence: data.confidence,
               source: data.source,
               sensitivity: data.sensitivity,
+              updatedAt: now,
             },
           })
         : await (this.prisma.userMemory as any).create({
             data: {
               ...data,
+              createdAt: now,
+              updatedAt: now,
             },
           });
 
@@ -184,6 +193,7 @@ export class ProfilesService {
           userId,
           eventType: 'ask',
           queryText: message,
+          createdAt: databaseNow(),
         },
       });
     } catch {
@@ -200,6 +210,7 @@ export class ProfilesService {
           eventType: dto.eventType,
           serviceItemId: dto.serviceItemId,
           metadata: dto.metadata as any,
+          createdAt: databaseNow(),
         },
       });
 
@@ -215,6 +226,8 @@ export class ProfilesService {
       create: {
         userId,
         source: 'mock',
+        createdAt: databaseNow(),
+        updatedAt: databaseNow(),
       },
       update: {},
     });

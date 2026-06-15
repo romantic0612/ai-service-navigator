@@ -4,6 +4,7 @@ services:
     container_name: ai-service-navigator-mysql
     restart: unless-stopped
     environment:
+      TZ: ${APP_TIMEZONE:-Asia/Shanghai}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
@@ -30,6 +31,7 @@ services:
     depends_on:
       - redis
     environment:
+      TZ: ${APP_TIMEZONE:-Asia/Shanghai}
       DATABASE_URL: ${DATABASE_URL:-}
       MYSQL_HOST: ${MYSQL_HOST:-mysql}
       MYSQL_PORT: ${MYSQL_PORT:-3306}
@@ -39,6 +41,13 @@ services:
       DIFY_API_BASE_URL: ${DIFY_API_BASE_URL}
       DIFY_API_KEY: ${DIFY_API_KEY}
       DIFY_INTENT_API_KEY: ${DIFY_INTENT_API_KEY}
+      DIFY_TIMEOUT_MS: ${DIFY_TIMEOUT_MS:-5000}
+      MINIMAX_API_BASE_URL: ${MINIMAX_API_BASE_URL:-}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY:-}
+      MINIMAX_MODEL: ${MINIMAX_MODEL:-minimax-2.5}
+      MINIMAX_TIMEOUT_MS: ${MINIMAX_TIMEOUT_MS:-3000}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Shanghai}
+      APP_TIMEZONE_OFFSET_MINUTES: ${APP_TIMEZONE_OFFSET_MINUTES:-480}
       OAUTH_AUTH_SERVER: ${OAUTH_AUTH_SERVER}
       OAUTH_CLIENT_ID: ${OAUTH_CLIENT_ID}
       OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET}
@@ -56,6 +65,8 @@ services:
         VITE_API_BASE_URL: ${WEB_API_BASE_URL:-}
     container_name: ai-service-navigator-web
     restart: unless-stopped
+    environment:
+      TZ: ${APP_TIMEZONE:-Asia/Shanghai}
     depends_on:
       - api
     volumes:
