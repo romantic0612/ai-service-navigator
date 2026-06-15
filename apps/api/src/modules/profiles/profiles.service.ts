@@ -272,11 +272,11 @@ export class ProfilesService {
     }
 
     const normalized = gender.trim();
-    if (normalized === '1' || normalized === '男') {
+    if (normalized === '男' || normalized.toLowerCase() === 'male' || normalized === '1') {
       return '男';
     }
 
-    if (normalized === '2' || normalized === '女') {
+    if (normalized === '女' || normalized.toLowerCase() === 'female' || normalized === '2') {
       return '女';
     }
 
