@@ -1,5 +1,7 @@
 services:
   mysql:
+    profiles:
+      - internal-mysql
     image: mysql:8.4
     container_name: ai-service-navigator-mysql
     restart: unless-stopped
