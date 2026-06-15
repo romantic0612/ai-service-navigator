@@ -105,8 +105,9 @@ const monitorVisitorTrend = computed(() =>
   })),
 );
 const monitorVisitorPeak = computed(() => Math.max(...monitorVisitorTrend.value.map((item) => item.visitors), 1));
-const monitorStudentQuestionChart = computed(() => (monitor.value?.studentTopQuestions ?? []).slice(0, 8));
-const monitorTeacherQuestionChart = computed(() => (monitor.value?.teacherTopQuestions ?? []).slice(0, 8));
+const monitorRoleShareChart = computed(() => (monitor.value?.roleStats ?? []).filter((item) => item.askCount > 0).slice(0, 6));
+const monitorStudentQuestionChart = computed(() => (monitor.value?.studentTopQuestions ?? []).slice(0, 6));
+const monitorTeacherQuestionChart = computed(() => (monitor.value?.teacherTopQuestions ?? []).slice(0, 6));
 const monitorStudentQuestionPeak = computed(() =>
   Math.max(...monitorStudentQuestionChart.value.map((item) => item.count), 1),
 );
@@ -316,12 +317,45 @@ function dismissCandidate(candidate: ProfileUpdateCandidate) {
   savedCandidates.value.push(candidateKey(candidate));
 }
 
-function monitorBarWidth(value: number, total: number) {
+function monitorColumnHeight(value: number, total: number) {
   if (!total) {
     return '0%';
   }
 
-  return `${Math.max(8, Math.round((value / total) * 100))}%`;
+  return `${Math.max(10, Math.round((value / total) * 100))}%`;
+}
+
+function monitorQuestionColor(index: number, mode: 'student' | 'teacher') {
+  const studentColors = ['#ff5a67', '#26d0a8', '#39bff2', '#ffa24a', '#d86cff', '#f6d84a'];
+  const teacherColors = ['#1ea7ff', '#ff7f50', '#7d5cff', '#18c29c', '#ff4f8b', '#d6f542'];
+  const colors = mode === 'teacher' ? teacherColors : studentColors;
+  return colors[index % colors.length];
+}
+
+function monitorRoleColor(index: number) {
+  const colors = ['#ff5a67', '#26d0a8', '#39bff2', '#ffa24a', '#d86cff', '#f6d84a'];
+  return colors[index % colors.length];
+}
+
+function monitorRolePieBackground(items: MonitorOverview['roleStats']) {
+  const total = items.reduce((sum, item) => sum + item.askCount, 0);
+  if (!total) {
+    return '#e8f5f3';
+  }
+
+  let cursor = 0;
+  const segments = items.map((item, index) => {
+    const start = cursor;
+    const end = cursor + (item.askCount / total) * 360;
+    cursor = end;
+    return `${monitorRoleColor(index)} ${start.toFixed(2)}deg ${end.toFixed(2)}deg`;
+  });
+
+  return `conic-gradient(${segments.join(', ')})`;
+}
+
+function monitorShortLabel(text: string) {
+  return text.length > 8 ? `${text.slice(0, 8)}…` : text;
 }
 
 function monitorLinePoints(values: number[], total: number) {
@@ -473,6 +507,39 @@ function defaultWelcomeMessages(): ChatMessage[] {
           </div>
         </section>
 
+        <section class="monitor-card monitor-card--pie">
+          <div class="monitor-card__heading">
+            <div>
+              <span>Audience Share</span>
+              <h2>身份占比</h2>
+            </div>
+            <small>{{ monitor.days }} 天</small>
+          </div>
+          <p v-if="!monitorRoleShareChart.length" class="monitor-empty">暂无身份统计数据</p>
+          <div v-else class="monitor-pie-chart">
+            <div class="monitor-pie-chart__visual">
+              <div class="monitor-pie-chart__ring" :style="{ background: monitorRolePieBackground(monitorRoleShareChart) }">
+                <span>{{ monitorAskTotal }}</span>
+                <small>提问</small>
+              </div>
+            </div>
+            <div class="monitor-pie-chart__legend">
+              <article
+                v-for="(item, index) in monitorRoleShareChart"
+                :key="item.role"
+                :style="{ '--chart-color': monitorRoleColor(index) }"
+              >
+                <div>
+                  <i></i>
+                  <strong>{{ item.role }}</strong>
+                </div>
+                <span>{{ item.rate }}%</span>
+                <small>{{ item.askCount }} 条 / {{ item.affectedUsers }} 人</small>
+              </article>
+            </div>
+          </div>
+        </section>
+
         <section class="monitor-card monitor-card--question-chart">
           <div class="monitor-card__heading">
             <div>
@@ -482,20 +549,35 @@ function defaultWelcomeMessages(): ChatMessage[] {
             <small>{{ monitor.days }} 天</small>
           </div>
           <p v-if="!monitor.studentTopQuestions.length" class="monitor-empty">暂无学生提问数据</p>
-          <div v-else class="monitor-question-chart" aria-label="学生常问问题柱状图">
-            <article v-for="(item, index) in monitorStudentQuestionChart" :key="item.queryText">
-              <div class="monitor-question-chart__label">
-                <span>{{ index + 1 }}</span>
+          <div v-else class="monitor-column-chart" aria-label="学生常问问题柱状图">
+            <div class="monitor-column-chart__legend">
+              <span
+                v-for="(item, index) in monitorStudentQuestionChart"
+                :key="item.queryText"
+                :style="{ '--chart-color': monitorQuestionColor(index, 'student') }"
+              >
+                <i></i>{{ monitorShortLabel(item.queryText) }}
+              </span>
+            </div>
+            <div class="monitor-column-chart__plot">
+              <article
+                v-for="(item, index) in monitorStudentQuestionChart"
+                :key="item.queryText"
+                :style="{ '--chart-color': monitorQuestionColor(index, 'student') }"
+              >
+                <strong>{{ item.count }}</strong>
                 <div>
-                  <strong>{{ item.queryText }}</strong>
-                  <small>{{ item.users }} 人问过 · 最近 {{ item.latestAt }}</small>
+                  <i :style="{ height: monitorColumnHeight(item.count, monitorStudentQuestionPeak) }"></i>
                 </div>
+                <span>{{ monitorShortLabel(item.queryText) }}</span>
+              </article>
+            </div>
+            <div class="monitor-column-chart__details">
+              <div v-for="item in monitorStudentQuestionChart" :key="item.queryText">
+                <strong>{{ item.queryText }}</strong>
+                <span>{{ item.users }} 人问过 · 最近 {{ item.latestAt }}</span>
               </div>
-              <div class="monitor-question-chart__bar">
-                <i :style="{ width: monitorBarWidth(item.count, monitorStudentQuestionPeak) }"></i>
-                <b>{{ item.count }} 次</b>
-              </div>
-            </article>
+            </div>
             <p v-if="monitor.studentTopQuestions.length > monitorStudentQuestionChart.length" class="monitor-chart-note">
               已展示前 {{ monitorStudentQuestionChart.length }} 个高频问题
             </p>
@@ -511,20 +593,35 @@ function defaultWelcomeMessages(): ChatMessage[] {
             <small>{{ monitor.days }} 天</small>
           </div>
           <p v-if="!monitor.teacherTopQuestions.length" class="monitor-empty">暂无老师提问数据</p>
-          <div v-else class="monitor-question-chart monitor-question-chart--teacher" aria-label="老师常问问题柱状图">
-            <article v-for="(item, index) in monitorTeacherQuestionChart" :key="item.queryText">
-              <div class="monitor-question-chart__label">
-                <span>{{ index + 1 }}</span>
+          <div v-else class="monitor-column-chart monitor-column-chart--teacher" aria-label="老师常问问题柱状图">
+            <div class="monitor-column-chart__legend">
+              <span
+                v-for="(item, index) in monitorTeacherQuestionChart"
+                :key="item.queryText"
+                :style="{ '--chart-color': monitorQuestionColor(index, 'teacher') }"
+              >
+                <i></i>{{ monitorShortLabel(item.queryText) }}
+              </span>
+            </div>
+            <div class="monitor-column-chart__plot">
+              <article
+                v-for="(item, index) in monitorTeacherQuestionChart"
+                :key="item.queryText"
+                :style="{ '--chart-color': monitorQuestionColor(index, 'teacher') }"
+              >
+                <strong>{{ item.count }}</strong>
                 <div>
-                  <strong>{{ item.queryText }}</strong>
-                  <small>{{ item.users }} 人问过 · 最近 {{ item.latestAt }}</small>
+                  <i :style="{ height: monitorColumnHeight(item.count, monitorTeacherQuestionPeak) }"></i>
                 </div>
+                <span>{{ monitorShortLabel(item.queryText) }}</span>
+              </article>
+            </div>
+            <div class="monitor-column-chart__details">
+              <div v-for="item in monitorTeacherQuestionChart" :key="item.queryText">
+                <strong>{{ item.queryText }}</strong>
+                <span>{{ item.users }} 人问过 · 最近 {{ item.latestAt }}</span>
               </div>
-              <div class="monitor-question-chart__bar">
-                <i :style="{ width: monitorBarWidth(item.count, monitorTeacherQuestionPeak) }"></i>
-                <b>{{ item.count }} 次</b>
-              </div>
-            </article>
+            </div>
             <p v-if="monitor.teacherTopQuestions.length > monitorTeacherQuestionChart.length" class="monitor-chart-note">
               已展示前 {{ monitorTeacherQuestionChart.length }} 个高频问题
             </p>
