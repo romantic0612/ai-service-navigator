@@ -27,14 +27,14 @@ const monitorLoading = ref(false);
 const monitorError = ref('');
 const nextId = ref(1);
 const savedCandidates = ref<string[]>([]);
-const currentUserId = ref(resolveUserId());
-const profile = ref<ProfileSummary | null>(null);
-const displayName = computed(() => profile.value?.name || '我的');
 const messages = ref<ChatMessage[]>([]);
 const isMonitorPage = computed(() => {
   const pathname = window.location.pathname || '/';
   return pathname === '/monitor' || pathname.startsWith('/monitor/');
 });
+const currentUserId = ref(resolveUserId(isMonitorPage.value));
+const profile = ref<ProfileSummary | null>(null);
+const displayName = computed(() => profile.value?.name || '我的');
 const monitor = ref<MonitorOverview | null>(null);
 const monitorDays = ref(30);
 
@@ -80,7 +80,7 @@ if (isMonitorPage.value) {
   messages.value.push(...defaultWelcomeMessages());
 }
 
-function resolveUserId() {
+function resolveUserId(isMonitor: boolean) {
   const url = new URL(window.location.href);
   const queryUserId = url.searchParams.get('userId');
   if (queryUserId) {
@@ -100,6 +100,9 @@ function resolveUserId() {
   }
 
   if (import.meta.env.PROD) {
+    if (isMonitor) {
+      return '';
+    }
     goAuthLogin();
     return '';
   }
