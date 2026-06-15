@@ -108,7 +108,34 @@ export type MonitorOverview = {
   roleStats: MonitorRoleStat[];
   noResultQuestions: MonitorNoResultItem[];
   secondaryAuthIssues: MonitorAuthIssue;
+  trend: MonitorTrendItem[];
+  hourlyActivity: MonitorHourlyActivityItem[];
+  topQuestions: MonitorTopQuestionItem[];
   updatedAt: string;
+};
+
+export type MonitorTrendItem = {
+  day: string;
+  asks: number;
+  serviceOpens: number;
+  noResults: number;
+  activeUsers: number;
+  logins: number;
+};
+
+export type MonitorHourlyActivityItem = {
+  hour: number;
+  label: string;
+  asks: number;
+  serviceOpens: number;
+  logins: number;
+};
+
+export type MonitorTopQuestionItem = {
+  queryText: string;
+  count: number;
+  users: number;
+  latestAt: string;
 };
 
 export type MonitorAuthStatus = {

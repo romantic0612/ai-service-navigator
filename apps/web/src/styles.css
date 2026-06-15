@@ -989,6 +989,180 @@ button {
   box-shadow: 0 5px 14px rgba(23, 118, 109, 0.18);
 }
 
+.monitor-chart-card {
+  margin-top: 12px;
+  border: 1px solid rgba(159, 181, 188, 0.24);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 16px 38px rgba(25, 52, 64, 0.08);
+}
+
+.monitor-line-chart {
+  overflow: hidden;
+  border: 1px solid rgba(159, 181, 188, 0.22);
+  border-radius: 16px;
+  background:
+    linear-gradient(rgba(21, 111, 104, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(21, 111, 104, 0.06) 1px, transparent 1px),
+    linear-gradient(180deg, #fbffff, #f2faf8);
+  background-size: 100% 23px, 50px 100%, 100% 100%;
+}
+
+.monitor-line-chart svg {
+  display: block;
+  width: 100%;
+  height: 122px;
+}
+
+.monitor-line-chart polyline {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 5;
+}
+
+.monitor-line-chart__asks {
+  stroke: #126f68;
+}
+
+.monitor-line-chart__opens {
+  stroke: #f0a33a;
+}
+
+.monitor-chart-bars {
+  display: flex;
+  align-items: end;
+  gap: 5px;
+  min-height: 78px;
+  margin-top: 12px;
+  padding: 0 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.monitor-chart-bars::-webkit-scrollbar {
+  display: none;
+}
+
+.monitor-chart-bars div {
+  display: grid;
+  justify-items: center;
+  align-items: end;
+  gap: 6px;
+  min-width: 30px;
+  height: 76px;
+}
+
+.monitor-chart-bars span {
+  display: block;
+  width: 16px;
+  min-height: 4px;
+  border-radius: 999px 999px 4px 4px;
+}
+
+.monitor-chart-bars__login {
+  background: linear-gradient(180deg, #6bbfba, #17766d);
+}
+
+.monitor-chart-bars small {
+  color: #74858c;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.monitor-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.monitor-chart-legend span {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  color: #52666f;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.monitor-chart-legend i {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.legend-ask {
+  background: #126f68;
+}
+
+.legend-open {
+  background: #f0a33a;
+}
+
+.legend-login {
+  background: #6bbfba;
+}
+
+.monitor-hour-grid {
+  display: grid;
+  grid-template-columns: repeat(24, minmax(7px, 1fr));
+  align-items: end;
+  gap: 4px;
+  min-height: 130px;
+  border: 1px solid rgba(159, 181, 188, 0.22);
+  border-radius: 16px;
+  padding: 14px 10px 20px;
+  background: linear-gradient(180deg, #fbffff, #f2faf8);
+}
+
+.monitor-hour-grid div {
+  position: relative;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  height: 96px;
+}
+
+.monitor-hour-grid span {
+  display: block;
+  width: 100%;
+  min-height: 4px;
+  border-radius: 999px 999px 4px 4px;
+  background: linear-gradient(180deg, #f0a33a, #17766d);
+}
+
+.monitor-hour-grid small {
+  position: absolute;
+  bottom: -15px;
+  color: #75868e;
+  font-size: 9px;
+}
+
+.monitor-list--questions li {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.monitor-list--questions i {
+  display: block;
+  height: 5px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f0a33a, #17766d);
+}
+
+.monitor-list--questions span {
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #176f68;
+  background: #eaf5f3;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .quick-prompts {
   position: fixed;
   right: 0;

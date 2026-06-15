@@ -57,4 +57,29 @@ export class MonitorController {
       days: Number.parseInt(days, 10),
     });
   }
+
+  @UseGuards(MonitorAuthGuard)
+  @Get('usage-trend')
+  getUsageTrend(@Query('days') days = '30') {
+    return this.monitorService.getUsageTrend({
+      days: Number.parseInt(days, 10),
+    });
+  }
+
+  @UseGuards(MonitorAuthGuard)
+  @Get('hourly-activity')
+  getHourlyActivity(@Query('days') days = '30') {
+    return this.monitorService.getHourlyActivity({
+      days: Number.parseInt(days, 10),
+    });
+  }
+
+  @UseGuards(MonitorAuthGuard)
+  @Get('top-questions')
+  getTopQuestions(@Query('days') days = '30', @Query('limit') limit = '20') {
+    return this.monitorService.getTopQuestions({
+      days: Number.parseInt(days, 10),
+      limit: Number.parseInt(limit, 10),
+    });
+  }
 }

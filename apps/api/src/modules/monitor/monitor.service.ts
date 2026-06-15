@@ -20,11 +20,14 @@ export class MonitorService {
 
   async getOverview(query: { days?: number }) {
     const days = this.normalizeDays(query.days);
-    const [topServices, roleStats, noResultQuestions, authIssues] = await Promise.all([
+    const [topServices, roleStats, noResultQuestions, authIssues, trend, hourlyActivity, topQuestions] = await Promise.all([
       this.getServiceClickRank({ days, limit: 10 }),
       this.getRoleStats({ days }),
       this.getNoResultQuestions({ days, limit: 20 }),
       this.getSecondaryAuthIssues({ days, limit: 20 }),
+      this.getUsageTrend({ days }),
+      this.getHourlyActivity({ days }),
+      this.getTopQuestions({ days, limit: 12 }),
     ]);
 
     return {
@@ -33,6 +36,9 @@ export class MonitorService {
       roleStats,
       noResultQuestions,
       secondaryAuthIssues: authIssues,
+      trend,
+      hourlyActivity,
+      topQuestions,
       updatedAt: this.formatDisplayTime(new Date()),
     };
   }
@@ -182,6 +188,162 @@ export class MonitorService {
         createdAt: this.formatDisplayTime(row.createdAt),
       })),
     };
+  }
+
+  async getUsageTrend(query: MonitorRangeOptions) {
+    const days = this.normalizeDays(query.days);
+    const from = this.dateFrom(days);
+
+    const eventRows = await this.prisma.$queryRaw<
+      Array<{ day: string; eventType: string; count: bigint; users: bigint }>
+    >(Prisma.sql`
+      SELECT DATE_FORMAT(e.created_at, '%m-%d') AS day,
+             e.event_type AS eventType,
+             COUNT(*) AS count,
+             COUNT(DISTINCT e.user_id) AS users
+      FROM user_events e
+      WHERE e.created_at >= ${from}
+        AND e.event_type IN ('ask', 'open_service', 'no_result')
+      GROUP BY day, e.event_type
+      ORDER BY MIN(e.created_at) ASC
+    `);
+
+    const loginRows = await this.prisma.$queryRaw<Array<{ day: string; logins: bigint }>>(Prisma.sql`
+      SELECT DATE_FORMAT(p.updated_at, '%m-%d') AS day,
+             COUNT(*) AS logins
+      FROM user_profiles p
+      WHERE p.updated_at >= ${from}
+      GROUP BY day
+      ORDER BY MIN(p.updated_at) ASC
+    `);
+
+    const bucketMap = new Map<
+      string,
+      { day: string; asks: number; serviceOpens: number; noResults: number; activeUsers: number; logins: number }
+    >();
+
+    for (const row of eventRows) {
+      const bucket = bucketMap.get(row.day) ?? {
+        day: row.day,
+        asks: 0,
+        serviceOpens: 0,
+        noResults: 0,
+        activeUsers: 0,
+        logins: 0,
+      };
+      if (row.eventType === 'ask') {
+        bucket.asks = Number(row.count);
+        bucket.activeUsers = Math.max(bucket.activeUsers, Number(row.users));
+      }
+      if (row.eventType === 'open_service') {
+        bucket.serviceOpens = Number(row.count);
+      }
+      if (row.eventType === 'no_result') {
+        bucket.noResults = Number(row.count);
+      }
+      bucketMap.set(row.day, bucket);
+    }
+
+    for (const row of loginRows) {
+      const bucket = bucketMap.get(row.day) ?? {
+        day: row.day,
+        asks: 0,
+        serviceOpens: 0,
+        noResults: 0,
+        activeUsers: 0,
+        logins: 0,
+      };
+      bucket.logins = Number(row.logins);
+      bucketMap.set(row.day, bucket);
+    }
+
+    return [...bucketMap.values()].sort((left, right) => left.day.localeCompare(right.day));
+  }
+
+  async getHourlyActivity(query: MonitorRangeOptions) {
+    const days = this.normalizeDays(query.days);
+    const from = this.dateFrom(days);
+
+    const eventRows = await this.prisma.$queryRaw<
+      Array<{ hour: number; eventType: string; count: bigint }>
+    >(Prisma.sql`
+      SELECT HOUR(e.created_at) AS hour,
+             e.event_type AS eventType,
+             COUNT(*) AS count
+      FROM user_events e
+      WHERE e.created_at >= ${from}
+        AND e.event_type IN ('ask', 'open_service')
+      GROUP BY hour, e.event_type
+      ORDER BY hour ASC
+    `);
+
+    const loginRows = await this.prisma.$queryRaw<Array<{ hour: number; logins: bigint }>>(Prisma.sql`
+      SELECT HOUR(p.updated_at) AS hour,
+             COUNT(*) AS logins
+      FROM user_profiles p
+      WHERE p.updated_at >= ${from}
+      GROUP BY hour
+      ORDER BY hour ASC
+    `);
+
+    const buckets = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      label: `${hour.toString().padStart(2, '0')}:00`,
+      asks: 0,
+      serviceOpens: 0,
+      logins: 0,
+    }));
+
+    for (const row of eventRows) {
+      const bucket = buckets[row.hour];
+      if (!bucket) {
+        continue;
+      }
+      if (row.eventType === 'ask') {
+        bucket.asks = Number(row.count);
+      }
+      if (row.eventType === 'open_service') {
+        bucket.serviceOpens = Number(row.count);
+      }
+    }
+
+    for (const row of loginRows) {
+      const bucket = buckets[row.hour];
+      if (bucket) {
+        bucket.logins = Number(row.logins);
+      }
+    }
+
+    return buckets;
+  }
+
+  async getTopQuestions(query: MonitorListOptions) {
+    const { days, limit } = this.normalizeRange(query);
+    const from = this.dateFrom(days);
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{ queryText: string | null; count: bigint; latestAt: Date; users: bigint }>
+    >(Prisma.sql`
+      SELECT e.query_text AS queryText,
+             COUNT(*) AS count,
+             MAX(e.created_at) AS latestAt,
+             COUNT(DISTINCT e.user_id) AS users
+      FROM user_events e
+      WHERE e.event_type = 'ask'
+        AND e.created_at >= ${from}
+        AND e.query_text IS NOT NULL
+        AND e.query_text <> ''
+      GROUP BY e.query_text
+      ORDER BY count DESC, latestAt DESC
+      LIMIT ${limit}
+    `);
+
+    return rows.map((row) => ({
+      queryText: row.queryText ?? '未知问题',
+      count: Number(row.count),
+      users: Number(row.users),
+      latestAt: this.formatDisplayTime(row.latestAt),
+    }));
   }
 
   private normalizeDays(days?: number) {

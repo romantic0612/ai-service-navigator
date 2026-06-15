@@ -4,11 +4,8 @@ import {
   BarChart3,
   Bot,
   Check,
-  Clock3,
   KeyRound,
-  Layers3,
   LockKeyhole,
-  MapPinned,
   SearchX,
   Send,
   ShieldCheck,
@@ -69,10 +66,12 @@ const monitorTotalClicks = computed(() => monitor.value?.topServices.reduce((sum
 const monitorNoResultTotal = computed(
   () => monitor.value?.noResultQuestions.reduce((sum, item) => sum + item.count, 0) ?? 0,
 );
-const monitorSecondaryIssueTotal = computed(
-  () => monitor.value?.secondaryAuthIssues.hotItems.reduce((sum, item) => sum + item.issues, 0) ?? 0,
-);
 const monitorAskTotal = computed(() => monitor.value?.roleStats.reduce((sum, item) => sum + item.askCount, 0) ?? 0);
+const monitorLoginTotal = computed(() => monitor.value?.trend.reduce((sum, item) => sum + item.logins, 0) ?? 0);
+const monitorLatestTrend = computed(() => {
+  const trend = monitor.value?.trend ?? [];
+  return trend[trend.length - 1];
+});
 const monitorHitRate = computed(() => {
   if (!monitorAskTotal.value) {
     return 100;
@@ -88,6 +87,17 @@ const monitorNoResultRate = computed(() => {
   return Math.round((monitorNoResultTotal.value / monitorAskTotal.value) * 100);
 });
 const monitorTopServicePeak = computed(() => Math.max(...(monitor.value?.topServices.map((item) => item.clicks) ?? [1]), 1));
+const monitorTrendPeak = computed(() => {
+  const trend = monitor.value?.trend ?? [];
+  return Math.max(...trend.flatMap((item) => [item.asks, item.serviceOpens, item.logins]), 1);
+});
+const monitorHourlyPeak = computed(() => {
+  const hourly = monitor.value?.hourlyActivity ?? [];
+  return Math.max(...hourly.flatMap((item) => [item.asks, item.logins]), 1);
+});
+const monitorTopQuestionPeak = computed(() =>
+  Math.max(...(monitor.value?.topQuestions.map((item) => item.count) ?? [1]), 1),
+);
 
 const quickPrompts = ['云盘', '体育场馆预约', '学生档案查询', '会议室预约'];
 
@@ -299,6 +309,23 @@ function monitorBarWidth(value: number, total: number) {
   return `${Math.max(8, Math.round((value / total) * 100))}%`;
 }
 
+function monitorLinePoints(values: number[], total: number) {
+  if (!values.length) {
+    return '';
+  }
+
+  const width = 300;
+  const height = 84;
+  const step = values.length > 1 ? width / (values.length - 1) : width;
+  return values
+    .map((value, index) => {
+      const x = Math.round(index * step);
+      const y = Math.round(height - (value / total) * 68 - 8);
+      return `${x},${y}`;
+    })
+    .join(' ');
+}
+
 function defaultWelcomeMessages(): ChatMessage[] {
   return [
     {
@@ -373,34 +400,15 @@ function defaultWelcomeMessages(): ChatMessage[] {
         <section class="monitor-hero">
           <div>
             <p>过去 {{ monitor.days }} 天</p>
-            <h2>办事使用脉搏</h2>
+            <h2>实时使用趋势</h2>
           </div>
-          <span>实时快照</span>
-        </section>
-
-        <section class="monitor-visual-board" aria-label="AI办事效果评估闭环">
-          <div class="monitor-visual-board__copy">
-            <span>Evaluation Loop</span>
-            <h2>从问题到推荐的闭环</h2>
-            <p>把访问、命中、失败和人群差异放在一张图里，后面首页痛点推荐就从这里长出来。</p>
-          </div>
-          <div class="monitor-orbit-visual" aria-hidden="true">
-            <div class="monitor-orbit-visual__ring"></div>
-            <div class="monitor-orbit-visual__core">
-              <Target :size="24" />
-              <strong>痛点</strong>
-            </div>
-            <span class="monitor-orbit-visual__node monitor-orbit-visual__node--top">时间</span>
-            <span class="monitor-orbit-visual__node monitor-orbit-visual__node--right">身份</span>
-            <span class="monitor-orbit-visual__node monitor-orbit-visual__node--bottom">业务</span>
-            <span class="monitor-orbit-visual__node monitor-orbit-visual__node--left">空间</span>
-          </div>
+          <span>{{ monitor.updatedAt }}</span>
         </section>
 
         <section class="monitor-metrics" aria-label="监测指标概览">
           <article>
             <TrendingUp :size="18" />
-            <span>点击总量</span>
+            <span>办理跳转</span>
             <strong>{{ monitorTotalClicks }}</strong>
           </article>
           <article>
@@ -414,41 +422,63 @@ function defaultWelcomeMessages(): ChatMessage[] {
             <strong>{{ monitorNoResultRate }}%</strong>
           </article>
           <article>
-            <ShieldCheck :size="18" />
-            <span>入口异常</span>
-            <strong>{{ monitorSecondaryIssueTotal }}</strong>
+            <UsersRound :size="18" />
+            <span>登录/活跃</span>
+            <strong>{{ monitorLoginTotal }}</strong>
           </article>
         </section>
 
-        <section class="monitor-angle-grid" aria-label="多维评估方向">
-          <article>
-            <MapPinned :size="18" />
+        <section class="monitor-chart-card">
+          <div class="monitor-card__heading">
             <div>
-              <strong>空间维度</strong>
-              <span>学院、校区、楼宇</span>
+              <span>Trend</span>
+              <h2>访问是否在增加</h2>
             </div>
-          </article>
-          <article>
-            <Clock3 :size="18" />
+            <small>最新 {{ monitorLatestTrend?.day || '-' }}</small>
+          </div>
+          <div class="monitor-line-chart">
+            <svg viewBox="0 0 300 92" role="img" aria-label="每日提问和办理跳转趋势">
+              <polyline
+                :points="monitorLinePoints(monitor.trend.map((item) => item.asks), monitorTrendPeak)"
+                class="monitor-line-chart__asks"
+              />
+              <polyline
+                :points="monitorLinePoints(monitor.trend.map((item) => item.serviceOpens), monitorTrendPeak)"
+                class="monitor-line-chart__opens"
+              />
+            </svg>
+          </div>
+          <div class="monitor-chart-bars">
+            <div v-for="item in monitor.trend" :key="item.day">
+              <span
+                class="monitor-chart-bars__login"
+                :style="{ height: monitorBarWidth(item.logins, monitorTrendPeak) }"
+                :title="`${item.day} 登录 ${item.logins}`"
+              ></span>
+              <small>{{ item.day }}</small>
+            </div>
+          </div>
+          <div class="monitor-chart-legend">
+            <span><i class="legend-ask"></i>提问</span>
+            <span><i class="legend-open"></i>办理跳转</span>
+            <span><i class="legend-login"></i>登录/活跃</span>
+          </div>
+        </section>
+
+        <section class="monitor-chart-card">
+          <div class="monitor-card__heading">
             <div>
-              <strong>时间维度</strong>
-              <span>日趋势、周环比、节点峰值</span>
+              <span>Time Slot</span>
+              <h2>哪个时间段使用最多</h2>
             </div>
-          </article>
-          <article>
-            <UsersRound :size="18" />
-            <div>
-              <strong>身份维度</strong>
-              <span>本科生、研究生、教职工</span>
+            <small>24 小时</small>
+          </div>
+          <div class="monitor-hour-grid">
+            <div v-for="item in monitor.hourlyActivity" :key="item.hour">
+              <span :style="{ height: monitorBarWidth(item.asks + item.logins, monitorHourlyPeak) }"></span>
+              <small v-if="item.hour % 4 === 0">{{ item.hour }}</small>
             </div>
-          </article>
-          <article>
-            <Layers3 :size="18" />
-            <div>
-              <strong>业务维度</strong>
-              <span>教务、后勤、信息化、图书</span>
-            </div>
-          </article>
+          </div>
         </section>
 
         <section class="monitor-card monitor-card--rank">
@@ -469,6 +499,27 @@ function defaultWelcomeMessages(): ChatMessage[] {
                 <i :style="{ width: monitorBarWidth(item.clicks, monitorTopServicePeak) }"></i>
               </div>
               <span>{{ item.clicks }} 次</span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="monitor-card">
+          <div class="monitor-card__heading">
+            <div>
+              <span>Top Questions</span>
+              <h2>学生问什么最多</h2>
+            </div>
+            <small>{{ monitor.days }} 天</small>
+          </div>
+          <p v-if="!monitor.topQuestions.length" class="monitor-empty">暂无提问数据</p>
+          <ul v-else class="monitor-list monitor-list--questions">
+            <li v-for="item in monitor.topQuestions" :key="item.queryText">
+              <div>
+                <strong>{{ item.queryText }}</strong>
+                <small>{{ item.users }} 人问过 · 最近 {{ item.latestAt }}</small>
+                <i :style="{ width: monitorBarWidth(item.count, monitorTopQuestionPeak) }"></i>
+              </div>
+              <span>{{ item.count }} 次</span>
             </li>
           </ul>
         </section>
