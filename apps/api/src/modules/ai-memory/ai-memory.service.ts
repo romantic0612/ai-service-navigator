@@ -41,7 +41,7 @@ export class AiMemoryService {
 
   async generateGuide(profile: ProfileSummary, message = ''): Promise<GuideReply> {
     const recentMemories = await this.getRecentLowSensitivityMemories(profile.userId, 3);
-    const popularServices = await this.getPopularServiceTitles(5);
+    const popularServices = await this.getPopularServiceTitles(profile, 5);
     const modelResult = await this.miniMaxService.jsonChat(this.guidePrompt(), {
       profile,
       current_message: message,
@@ -58,7 +58,7 @@ export class AiMemoryService {
 
   async generateOpening(userId: string, profile: ProfileSummary): Promise<OpeningReply> {
     const recentMemories = await this.getRecentLowSensitivityMemories(userId, 5);
-    const popularServices = await this.getPopularServiceTitles(3);
+    const popularServices = await this.getPopularServiceTitles(profile, 3);
     const fallback = this.fallbackOpening(profile, recentMemories, popularServices);
     const modelResult = await this.miniMaxService.jsonChat(this.openingPrompt(), {
       profile,
@@ -275,7 +275,7 @@ export class AiMemoryService {
     };
   }
 
-  private async getPopularServiceTitles(take: number): Promise<string[]> {
+  private async getPopularServiceTitles(profile: ProfileSummary, take: number): Promise<string[]> {
     try {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const events = await this.prisma.userEvent.findMany({
@@ -302,9 +302,11 @@ export class AiMemoryService {
       if (popularIds.length > 0) {
         const items = await this.prisma.serviceItem.findMany({
           where: { id: { in: popularIds }, status: 'ENABLED' },
-          select: { id: true, title: true },
+          select: { id: true, title: true, targetRoles: true },
         });
-        const titleById = new Map(items.map((item) => [item.id, item.title]));
+        const titleById = new Map(
+          items.filter((item) => this.isRoleAllowed(this.toStringArray(item.targetRoles), profile.role)).map((item) => [item.id, item.title]),
+        );
         return popularIds.map((id) => titleById.get(id)).filter((title): title is string => Boolean(title));
       }
 
@@ -314,14 +316,63 @@ export class AiMemoryService {
           handlerCount: { not: null },
         },
         orderBy: { handlerCount: 'desc' },
-        select: { title: true },
-        take,
+        select: { title: true, targetRoles: true },
+        take: take * 6,
       });
 
-      return handlerCountItems.map((item) => item.title);
+      return handlerCountItems
+        .filter((item) => this.isRoleAllowed(this.toStringArray(item.targetRoles), profile.role))
+        .slice(0, take)
+        .map((item) => item.title);
     } catch {
       return [];
     }
+  }
+
+  private isRoleAllowed(targetRoles: string[], role?: string): boolean {
+    if (!targetRoles.length || !role) {
+      return true;
+    }
+
+    if (targetRoles.some((targetRole) => this.isUniversalRole(targetRole))) {
+      return true;
+    }
+
+    const profileRoles = this.extractStandardRoles(role);
+    const allowedRoles = new Set(targetRoles.flatMap((targetRole) => this.extractStandardRoles(targetRole)));
+    return profileRoles.some((profileRole) => allowedRoles.has(profileRole));
+  }
+
+  private isUniversalRole(roleText: string): boolean {
+    return ['全部人员', '全体人员', '所有人员', '所有人', '不限身份', '全校人员'].some((universalRole) =>
+      roleText.includes(universalRole),
+    );
+  }
+
+  private extractStandardRoles(roleText: string): string[] {
+    const roles = new Set<string>();
+    if (['师生', '全校师生', '在校师生'].some((alias) => roleText.includes(alias))) {
+      roles.add('教职工');
+      roles.add('本科生');
+      roles.add('研究生');
+    }
+    if (['教职工', '教工', '教师', '老师'].some((alias) => roleText.includes(alias))) {
+      roles.add('教职工');
+    }
+    if (['本科生', '本科'].some((alias) => roleText.includes(alias))) {
+      roles.add('本科生');
+    }
+    if (['研究生', '硕士', '博士'].some((alias) => roleText.includes(alias))) {
+      roles.add('研究生');
+    }
+    if (roleText.includes('校友')) {
+      roles.add('校友');
+    }
+    if (['访客', '社会人员', '社会人士', '校外人员'].some((alias) => roleText.includes(alias))) {
+      roles.add('访客');
+    }
+
+    return [...roles];
   }
 
   private hasSensitiveService(serviceCards: ServiceItemCard[]): boolean {
