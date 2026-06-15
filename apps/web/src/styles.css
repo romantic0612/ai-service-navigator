@@ -1163,6 +1163,123 @@ button {
   white-space: nowrap;
 }
 
+.monitor-trend-table {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.monitor-trend-table article {
+  border: 1px solid rgba(159, 181, 188, 0.22);
+  border-radius: 14px;
+  padding: 11px;
+  background: linear-gradient(180deg, #ffffff, #f8fcfb);
+}
+
+.monitor-trend-table header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+
+.monitor-trend-table header strong {
+  color: #142532;
+  font-size: 14px;
+}
+
+.monitor-trend-table header span {
+  color: #176f68;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.monitor-trend-table div {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 32px;
+  gap: 8px;
+  align-items: center;
+  min-height: 24px;
+}
+
+.monitor-trend-table label,
+.monitor-trend-table em {
+  color: #657781;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.monitor-trend-table em {
+  color: #142532;
+  font-weight: 800;
+  text-align: right;
+}
+
+.monitor-trend-table i {
+  display: block;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e7f0ef;
+}
+
+.monitor-trend-table b {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #17766d, #f0a33a);
+}
+
+.monitor-hour-list {
+  display: grid;
+  gap: 10px;
+}
+
+.monitor-hour-list article {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 48px;
+  gap: 9px;
+  align-items: center;
+  border: 1px solid rgba(159, 181, 188, 0.22);
+  border-radius: 14px;
+  padding: 10px 11px;
+  background: linear-gradient(180deg, #ffffff, #f8fcfb);
+}
+
+.monitor-hour-list strong {
+  color: #142532;
+  font-size: 13px;
+}
+
+.monitor-hour-list div {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e7f0ef;
+}
+
+.monitor-hour-list i {
+  display: block;
+  height: 100%;
+  min-width: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #17766d, #f0a33a);
+}
+
+.monitor-hour-list span {
+  color: #176f68;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: right;
+}
+
+.monitor-hour-list small {
+  grid-column: 2 / 4;
+  color: #71828a;
+  font-size: 11px;
+}
+
 .quick-prompts {
   position: fixed;
   right: 0;

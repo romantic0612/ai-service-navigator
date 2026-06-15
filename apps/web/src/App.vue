@@ -448,15 +448,29 @@ function defaultWelcomeMessages(): ChatMessage[] {
               />
             </svg>
           </div>
-          <div class="monitor-chart-bars">
-            <div v-for="item in monitor.trend" :key="item.day">
-              <span
-                class="monitor-chart-bars__login"
-                :style="{ height: monitorBarWidth(item.logins, monitorTrendPeak) }"
-                :title="`${item.day} 登录 ${item.logins}`"
-              ></span>
-              <small>{{ item.day }}</small>
-            </div>
+          <div class="monitor-trend-table">
+            <article v-for="item in monitor.trend" :key="item.day">
+              <header>
+                <strong>{{ item.day }}</strong>
+                <span>{{ item.activeUsers }} 人活跃</span>
+              </header>
+              <div>
+                <label>提问</label>
+                <i><b :style="{ width: monitorBarWidth(item.asks, monitorTrendPeak) }"></b></i>
+                <em>{{ item.asks }}</em>
+              </div>
+              <div>
+                <label>跳转</label>
+                <i><b :style="{ width: monitorBarWidth(item.serviceOpens, monitorTrendPeak) }"></b></i>
+                <em>{{ item.serviceOpens }}</em>
+              </div>
+              <div>
+                <label>登录</label>
+                <i><b :style="{ width: monitorBarWidth(item.logins, monitorTrendPeak) }"></b></i>
+                <em>{{ item.logins }}</em>
+              </div>
+            </article>
+            <p v-if="!monitor.trend.length" class="monitor-empty">暂无趋势数据</p>
           </div>
           <div class="monitor-chart-legend">
             <span><i class="legend-ask"></i>提问</span>
@@ -473,11 +487,24 @@ function defaultWelcomeMessages(): ChatMessage[] {
             </div>
             <small>24 小时</small>
           </div>
-          <div class="monitor-hour-grid">
-            <div v-for="item in monitor.hourlyActivity" :key="item.hour">
-              <span :style="{ height: monitorBarWidth(item.asks + item.logins, monitorHourlyPeak) }"></span>
-              <small v-if="item.hour % 4 === 0">{{ item.hour }}</small>
-            </div>
+          <div class="monitor-hour-list">
+            <article
+              v-for="item in monitor.hourlyActivity.filter((hourItem) => hourItem.asks + hourItem.logins + hourItem.serviceOpens > 0)"
+              :key="item.hour"
+            >
+              <strong>{{ item.label }}</strong>
+              <div>
+                <i :style="{ width: monitorBarWidth(item.asks + item.logins + item.serviceOpens, monitorHourlyPeak) }"></i>
+              </div>
+              <span>{{ item.asks + item.logins + item.serviceOpens }} 次</span>
+              <small>提问 {{ item.asks }} / 跳转 {{ item.serviceOpens }} / 登录 {{ item.logins }}</small>
+            </article>
+            <p
+              v-if="!monitor.hourlyActivity.some((hourItem) => hourItem.asks + hourItem.logins + hourItem.serviceOpens > 0)"
+              class="monitor-empty"
+            >
+              暂无分时数据
+            </p>
           </div>
         </section>
 
@@ -503,11 +530,11 @@ function defaultWelcomeMessages(): ChatMessage[] {
           </ul>
         </section>
 
-        <section class="monitor-card">
+        <section v-if="monitor.noResultQuestions.length" class="monitor-card">
           <div class="monitor-card__heading">
             <div>
               <span>Top Questions</span>
-              <h2>学生问什么最多</h2>
+              <h2>师生问什么最多</h2>
             </div>
             <small>{{ monitor.days }} 天</small>
           </div>
@@ -524,7 +551,7 @@ function defaultWelcomeMessages(): ChatMessage[] {
           </ul>
         </section>
 
-        <section class="monitor-card">
+        <section v-if="monitor.secondaryAuthIssues.hotItems.length || monitor.secondaryAuthIssues.recentCases.length" class="monitor-card">
           <div class="monitor-card__heading">
             <div>
               <span>Audience</span>
