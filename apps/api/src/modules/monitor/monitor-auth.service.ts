@@ -29,7 +29,7 @@ export class MonitorAuthService {
     const allowlistRaw = config.get<string>('MONITOR_ALLOWED_USER_IDS')?.trim() || '';
     this.allowlist = new Set(
       allowlistRaw
-        .split(',')
+        .split(/[,，;\s]+/)
         .map((id) => id.trim())
         .filter(Boolean),
     );
@@ -136,7 +136,7 @@ export class MonitorAuthService {
       return;
     }
     if (this.allowlist.size > 0 && !this.allowlist.has(userId)) {
-      throw new BadRequestException('monitor user not allowed');
+      throw new BadRequestException('当前账号未加入监测后台白名单，请在 MONITOR_ALLOWED_USER_IDS 中添加该 IDS');
     }
   }
 

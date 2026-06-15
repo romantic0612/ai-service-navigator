@@ -51,19 +51,14 @@ export class AssistantService {
       searchResult.items.length === 0
         ? await this.serviceItemsService.search(searchQuery, profile, { ignoreRoleFilter: true })
         : undefined;
-    const serviceCards =
-      searchResult.items.length > 0
-        ? searchResult.items
-        : roleMismatchResult?.items.length
-          ? roleMismatchResult.items
-          : [];
+    const serviceCards = searchResult.items.length > 0 ? searchResult.items : [];
 
     const profileUpdateCandidates = this.mergeProfileCandidates([
       ...this.extractProfileUpdateCandidates(message),
       ...(difyIntent?.profileUpdateCandidates ?? []),
     ]);
 
-    if (serviceCards.length === 0) {
+    if (serviceCards.length === 0 && !roleMismatchResult?.items.length) {
       await this.profilesService.recordUserEvent(userId, {
         eventType: 'no_result',
         queryText: message,
@@ -75,24 +70,25 @@ export class AssistantService {
       });
       return {
         action: 'no_reliable_result',
-        message: '当前问题没匹配到稳定可办理的事项，建议你先从“学生办事入口”里按办事名称或对象筛选后再试。',
+        message: '当前问题没匹配到稳定可办理的事项。你可以换一种说法，或补充办理对象、业务类型，我会继续从学校事项库里查。',
         profileUpdateCandidates,
       };
     }
 
     if (searchResult.items.length === 0 && roleMismatchResult?.items.length) {
-      const messageText = this.buildRoleMismatchMessage(profile, serviceCards);
+      const alternatives = await this.serviceItemsService.recommendAlternatives(profile, message, 3);
+      const messageText = this.buildRoleMismatchMessage(profile, roleMismatchResult.items, alternatives);
       this.aiMemoryService.processTurnInBackground(profile, {
         userId,
         message,
         replyMessage: messageText,
-        serviceCards,
+        serviceCards: alternatives,
       });
 
       return {
         action: 'role_mismatch',
         message: messageText,
-        serviceCards,
+        serviceCards: alternatives,
         profileUpdateCandidates,
       };
     }
@@ -121,12 +117,19 @@ export class AssistantService {
     return `我给你找到了 ${count} 个可直接办理的入口，点开就能开始。`;
   }
 
-  private buildRoleMismatchMessage(profile: ProfileSummary, serviceCards: ServiceItemCard[]): string {
+  private buildRoleMismatchMessage(
+    profile: ProfileSummary,
+    mismatchedCards: ServiceItemCard[],
+    alternatives: ServiceItemCard[],
+  ): string {
     const roleText = profile.role ? `当前身份为【${profile.role}】` : '当前身份未知';
-    const targetRoles = [...new Set(serviceCards.flatMap((card) => card.targetRoles))].filter(Boolean);
+    const targetRoles = [...new Set(mismatchedCards.flatMap((card) => card.targetRoles))].filter(Boolean);
     const targetText = targetRoles.length ? `该事项适配身份为：${targetRoles.join('，')}` : '';
+    const alternativeText = alternatives.length
+      ? `我没有返回这个不匹配入口，下面只给你当前身份可用的相关事项。`
+      : '我没有返回这个不匹配入口，你可以换成当前身份可办理的事项再问。';
 
-    return `这条结果和${roleText}不完全匹配，以下是可查看的事项：${targetText}，如果你有相符身份，点开后可继续办理。`;
+    return `这条事项和${roleText}不匹配。${targetText}。${alternativeText}`;
   }
 
   private mergeProfileCandidates(candidates: ProfileUpdateCandidate[]): ProfileUpdateCandidate[] {

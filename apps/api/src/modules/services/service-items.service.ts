@@ -207,7 +207,7 @@ export class ServiceItemsService {
   }
 
   async recommendForProfile(profile: ProfileSummary): Promise<ServiceItemCard[]> {
-    const items = this.filterByProfile(await this.getSearchableItems(), profile);
+    const items = this.sortForRecommendation(this.filterByProfile(await this.getSearchableItems(), profile));
     const tags = profile.tags;
 
     if (tags.includes('毕业生') || tags.includes('关注考研')) {
@@ -215,6 +215,24 @@ export class ServiceItemsService {
     }
 
     return items.slice(0, 3).map((item) => this.toCard(item));
+  }
+
+  async recommendAlternatives(profile: ProfileSummary, query: string, limit = 3): Promise<ServiceItemCard[]> {
+    const items = this.filterByProfile(await this.getSearchableItems(), profile);
+    const normalizedQuery = query.trim();
+
+    const scoredItems = items
+      .map((item) => ({
+        item,
+        score: this.scoreItem(item, normalizedQuery),
+      }))
+      .filter(({ score }) => score > 0)
+      .sort((left, right) => right.score - left.score);
+
+    const candidates =
+      scoredItems.length > 0 ? scoredItems.map(({ item }) => item) : this.sortForRecommendation(items);
+
+    return candidates.slice(0, limit).map((item) => this.toCard(item));
   }
 
   private scoreItem(item: DemoServiceItem, query: string): number {
@@ -312,6 +330,18 @@ export class ServiceItemsService {
     }
 
     return scoredItems.slice(0, 3);
+  }
+
+  private sortForRecommendation(items: DemoServiceItem[]): DemoServiceItem[] {
+    return [...items].sort((left, right) => {
+      const rightCount = right.handlerCount ?? 0;
+      const leftCount = left.handlerCount ?? 0;
+      if (rightCount !== leftCount) {
+        return rightCount - leftCount;
+      }
+
+      return left.title.localeCompare(right.title, 'zh-CN');
+    });
   }
 
   private filterByProfile(items: DemoServiceItem[], profile?: ProfileSummary): DemoServiceItem[] {

@@ -115,7 +115,17 @@ const monitorTeacherQuestionPeak = computed(() =>
   Math.max(...monitorTeacherQuestionChart.value.map((item) => item.count), 1),
 );
 
-const quickPrompts = ['云盘', '体育场馆预约', '学生档案查询', '会议室预约'];
+const quickPrompts = computed(() => {
+  if (profile.value?.role === '教职工') {
+    return ['教职工请假', '电子签章服务', '会议室预约', '科研发票'];
+  }
+
+  if (profile.value?.role === '研究生') {
+    return ['研究生学籍异动', '研究生论文提交', '学生邮箱服务', '心理咨询预约'];
+  }
+
+  return ['云盘', '体育场馆预约', '学生档案查询', '会议室预约'];
+});
 
 if (isMonitorPage.value) {
   initMonitorPage();
