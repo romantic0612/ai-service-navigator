@@ -111,6 +111,20 @@ export type MonitorOverview = {
   updatedAt: string;
 };
 
+export type MonitorAuthStatus = {
+  authorized: boolean;
+  userId?: string;
+  userName?: string;
+  expireAt?: string;
+};
+
+export type MonitorLoginResult = {
+  authorized: boolean;
+  userId?: string;
+  expireAt?: string;
+  message?: string;
+};
+
 export type AssistantOpening = {
   opening: string;
   quickActions: string[];
@@ -181,6 +195,24 @@ async function getMonitorWithFallback<T>(path: string, params?: Record<string, s
     const fallbackResponse = await axios.get<T>(`${apiMonitorFallbackBase}${path}`, toParams);
     return fallbackResponse.data;
   }
+}
+
+export async function getMonitorSession(): Promise<MonitorAuthStatus> {
+  const response = await axios.get<MonitorAuthStatus>(`${apiMonitorFallbackBase}/session`);
+  return response.data;
+}
+
+export async function loginMonitor(userId: string, accessCode?: string): Promise<MonitorLoginResult> {
+  const response = await axios.post<MonitorLoginResult>(`${apiMonitorFallbackBase}/login`, {
+    userId,
+    accessCode,
+  });
+  return response.data;
+}
+
+export async function logoutMonitor() {
+  const response = await axios.get<{ authorized: boolean }>(`${apiMonitorFallbackBase}/logout`);
+  return response.data;
 }
 
 export async function getMonitorOverview(days = 30): Promise<MonitorOverview> {

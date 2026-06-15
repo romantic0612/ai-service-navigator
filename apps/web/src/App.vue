@@ -5,6 +5,8 @@ import ServiceCard from './components/ServiceCard.vue';
 import {
   getAssistantOpening,
   getMonitorOverview,
+  getMonitorSession,
+  loginMonitor,
   getProfileSummary,
   saveProfileMemory,
   sendAssistantMessage,
@@ -12,6 +14,7 @@ import {
   type MonitorOverview,
   type ProfileSummary,
   type ProfileUpdateCandidate,
+  type MonitorLoginResult,
 } from './services/assistant';
 
 type ChatMessage = {
@@ -25,6 +28,10 @@ const input = ref('');
 const loading = ref(false);
 const monitorLoading = ref(false);
 const monitorError = ref('');
+const monitorLoginLoading = ref(false);
+const monitorLoginUserId = ref('');
+const monitorLoginAccessCode = ref('');
+const monitorLoginError = ref('');
 const nextId = ref(1);
 const savedCandidates = ref<string[]>([]);
 const messages = ref<ChatMessage[]>([]);
@@ -37,23 +44,12 @@ const profile = ref<ProfileSummary | null>(null);
 const displayName = computed(() => profile.value?.name || '我的');
 const monitor = ref<MonitorOverview | null>(null);
 const monitorDays = ref(30);
+const monitorRequireLogin = ref(false);
 
 const quickPrompts = ['云盘', '体育场馆预约', '学生档案查询', '会议室预约'];
 
 if (isMonitorPage.value) {
-  monitorLoading.value = true;
-  getMonitorOverview(monitorDays.value)
-    .then((data) => {
-      monitor.value = data;
-      monitorError.value = '';
-    })
-    .catch(() => {
-      monitor.value = null;
-      monitorError.value = '监测数据暂时不可用，请稍后重试';
-    })
-    .finally(() => {
-      monitorLoading.value = false;
-    });
+  initMonitorPage();
 } else if (currentUserId.value) {
   getProfileSummary(currentUserId.value)
     .then((summary) => {
@@ -121,6 +117,67 @@ function goHome() {
 
 function goAuthLogin() {
   window.location.href = '/auth/oauth/login';
+}
+
+async function initMonitorPage() {
+  monitorLoading.value = true;
+  try {
+    const session = await getMonitorSession();
+    if (!session.authorized) {
+      monitorRequireLogin.value = true;
+      return;
+    }
+
+    monitorRequireLogin.value = false;
+    await loadMonitorData();
+  } catch {
+    monitorError.value = '监测数据暂时不可用，请稍后重试';
+  } finally {
+    monitorLoading.value = false;
+  }
+}
+
+async function loadMonitorData() {
+  monitorError.value = '';
+  monitor.value = await getMonitorOverview(monitorDays.value);
+}
+
+async function parseLoginResult(result: MonitorLoginResult) {
+  if (result.authorized) {
+    monitorRequireLogin.value = false;
+    monitorLoginError.value = '';
+    monitorLoginAccessCode.value = '';
+    monitorLoginUserId.value = '';
+    monitorLoading.value = true;
+    await loadMonitorData()
+      .catch(() => {
+        monitorError.value = '登录成功，但监测数据暂时不可用，请刷新重试';
+      })
+      .finally(() => {
+        monitorLoading.value = false;
+      });
+  }
+
+  monitorLoginError.value = result.message || '登录失败，请检查账号和口令';
+}
+
+async function handleMonitorLogin() {
+  const userId = monitorLoginUserId.value.trim();
+  if (!userId) {
+    monitorLoginError.value = '请输入用于授权的用户编号';
+    return;
+  }
+
+  monitorLoginLoading.value = true;
+  monitorLoginError.value = '';
+  try {
+    const result = await loginMonitor(userId, monitorLoginAccessCode.value.trim() || undefined);
+    await parseLoginResult(result);
+  } catch (err: unknown) {
+    monitorLoginError.value = err instanceof Error ? err.message : '登录失败，请检查网络或配置';
+  } finally {
+    monitorLoginLoading.value = false;
+  }
 }
 
 const pendingCandidates = computed(() => {
@@ -205,6 +262,19 @@ function defaultWelcomeMessages(): ChatMessage[] {
         </div>
         <button class="ghost-button" type="button" @click="goHome">返回首页</button>
       </header>
+
+      <section v-if="monitorRequireLogin" class="monitor-card">
+        <h2>监测后台登录</h2>
+        <p>此页面仅对管理员开放，请输入授权账号和口令。</p>
+        <div class="monitor-form">
+          <input v-model="monitorLoginUserId" placeholder="用户ID（如工号/学号）" />
+          <input v-model="monitorLoginAccessCode" type="password" placeholder="访问口令（若未设置可留空）" />
+          <button :disabled="monitorLoginLoading" type="button" @click="handleMonitorLogin">
+            {{ monitorLoginLoading ? '登录中...' : '进入' }}
+          </button>
+        </div>
+        <p v-if="monitorLoginError" class="monitor-empty">{{ monitorLoginError }}</p>
+      </section>
 
       <section v-if="monitorLoading" class="monitor-empty">监测数据加载中...</section>
       <section v-else-if="monitorError" class="monitor-empty">{{ monitorError }}</section>

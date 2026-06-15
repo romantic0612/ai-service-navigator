@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+﻿import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -64,7 +64,7 @@ export class MonitorService {
 
     return rows.map((row) => ({
       serviceItemId: row.serviceItemId,
-      title: row.title ?? '未命中事项',
+      title: row.title ?? '未知事项',
       clicks: Number(row.clicks),
       firstClick: this.formatDisplayTime(row.firstClick),
       lastClick: this.formatDisplayTime(row.lastClick),
@@ -93,7 +93,7 @@ export class MonitorService {
     const total = rows.reduce((sum, row) => sum + Number(row.askCount), 0);
 
     return rows.map((row) => ({
-      role: row.role || '未知',
+      role: row.role || '未知身份',
       askCount: Number(row.askCount),
       affectedUsers: Number(row.affectedUsers),
       rate: total > 0 ? Number(((Number(row.askCount) / total) * 100).toFixed(2)) : 0,
@@ -119,7 +119,7 @@ export class MonitorService {
     `);
 
     return rows.map((row) => ({
-      queryText: row.queryText ?? '（空查询）',
+      queryText: row.queryText ?? '未命中查询',
       count: Number(row.count),
       firstAt: this.formatDisplayTime(row.firstAt),
       lastAt: this.formatDisplayTime(row.lastAt),
@@ -168,7 +168,7 @@ export class MonitorService {
     return {
       hotItems: aggregated.map((row) => ({
         serviceItemId: row.serviceItemId,
-        title: row.title ?? '未命中事项',
+        title: row.title ?? '未知事项',
         issues: Number(row.issues),
         latestAt: this.formatDisplayTime(row.latestAt),
       })),
@@ -176,7 +176,7 @@ export class MonitorService {
         id: row.id,
         userId: row.userId,
         userName: row.userName || '匿名用户',
-        userRole: row.userRole || '未知',
+        userRole: row.userRole || '未知身份',
         serviceItemId: row.serviceItemId,
         metadata: row.metadata,
         createdAt: this.formatDisplayTime(row.createdAt),

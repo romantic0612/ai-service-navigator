@@ -1,10 +1,12 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { MonitorAuthGuard } from './monitor-auth.guard';
 import { MonitorService } from './monitor.service';
 
 @Controller('monitor')
 export class MonitorController {
   constructor(private readonly monitorService: MonitorService) {}
 
+  @UseGuards(MonitorAuthGuard)
   @Get('service-click-rank')
   getServiceClickRank(
     @Query('days') days = '30',
@@ -16,6 +18,7 @@ export class MonitorController {
     });
   }
 
+  @UseGuards(MonitorAuthGuard)
   @Get('role-stats')
   getRoleStats(@Query('days') days = '30') {
     return this.monitorService.getRoleStats({
@@ -23,6 +26,7 @@ export class MonitorController {
     });
   }
 
+  @UseGuards(MonitorAuthGuard)
   @Get('no-result-questions')
   getNoResultQuestions(
     @Query('days') days = '30',
@@ -34,6 +38,7 @@ export class MonitorController {
     });
   }
 
+  @UseGuards(MonitorAuthGuard)
   @Get('secondary-auth-issues')
   getSecondaryAuthIssues(
     @Query('days') days = '30',
@@ -45,6 +50,7 @@ export class MonitorController {
     });
   }
 
+  @UseGuards(MonitorAuthGuard)
   @Get('overview')
   getOverview(@Query('days') days = '30') {
     return this.monitorService.getOverview({
