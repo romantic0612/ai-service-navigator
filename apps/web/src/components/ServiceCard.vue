@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { AlertTriangle, ChevronDown, ChevronUp, Clock3, ExternalLink, Phone, UserRound } from '@lucide/vue';
+import { ChevronDown, ChevronUp, Clock3, ExternalLink, Phone, UserRound } from '@lucide/vue';
 import { ref } from 'vue';
-import { recordSecondaryAuthIssue, recordUserEvent, type ServiceCard } from '../services/assistant';
+import { recordUserEvent, type ServiceCard } from '../services/assistant';
 
 type TextPart = {
   type: 'text' | 'link';
@@ -14,7 +14,6 @@ const props = defineProps<{
 }>();
 
 const expanded = ref(false);
-const authReportState = ref<'idle' | 'sent'>('idle');
 const urlPattern = /https?:\/\/[^\s)]+/g;
 
 function openService() {
@@ -28,21 +27,6 @@ function openService() {
   }
 
   void recordUserEvent(props.userId, 'open_service', props.card.id, { title: props.card.title }).catch(() => undefined).finally(go);
-}
-
-function reportAuthBarrier() {
-  if (!props.userId) {
-    return;
-  }
-
-  void recordSecondaryAuthIssue(props.userId, props.card.id, {
-    title: props.card.title,
-    reason: '用户反馈：进入事项遇到二次认证障碍',
-  })
-    .then(() => {
-      authReportState.value = 'sent';
-    })
-    .catch(() => undefined);
 }
 
 function openUrl(url: string) {
@@ -133,10 +117,6 @@ function linkParts(text?: string): TextPart[] {
       <button class="primary-action" type="button" @click="openService">
         <ExternalLink :size="16" />
         <span>去办理</span>
-      </button>
-      <button class="warning-action" type="button" @click="reportAuthBarrier">
-        <AlertTriangle :size="16" />
-        <span>{{ authReportState === 'sent' ? '已上报' : '上报二次认证' }}</span>
       </button>
       <button class="secondary-action" type="button" @click="expanded = !expanded">
         <component :is="expanded ? ChevronUp : ChevronDown" :size="16" />
