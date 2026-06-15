@@ -51,6 +51,9 @@ docs/mysql-schema.sql
 
 ```text
 docs/seed-service-items.sql
+
+大量新增办事时建议使用批量导入说明：
+[docs/service-items-batch-import-guide.md](docs/service-items-batch-import-guide.md)
 ```
 
 ## 启动后端

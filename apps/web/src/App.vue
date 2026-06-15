@@ -1,5 +1,20 @@
 ﻿<script setup lang="ts">
-import { Bot, Check, Send, Sparkles, X } from '@lucide/vue';
+import {
+  ArrowLeft,
+  BarChart3,
+  Bot,
+  Check,
+  KeyRound,
+  LockKeyhole,
+  SearchX,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  TrendingUp,
+  UserRound,
+  UsersRound,
+  X,
+} from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
 import ServiceCard from './components/ServiceCard.vue';
 import {
@@ -46,6 +61,13 @@ const displayName = computed(() => profile.value?.name || '我的');
 const monitor = ref<MonitorOverview | null>(null);
 const monitorDays = ref(30);
 const monitorRequireLogin = ref(false);
+const monitorTotalClicks = computed(() => monitor.value?.topServices.reduce((sum, item) => sum + item.clicks, 0) ?? 0);
+const monitorNoResultTotal = computed(
+  () => monitor.value?.noResultQuestions.reduce((sum, item) => sum + item.count, 0) ?? 0,
+);
+const monitorSecondaryIssueTotal = computed(
+  () => monitor.value?.secondaryAuthIssues.hotItems.reduce((sum, item) => sum + item.issues, 0) ?? 0,
+);
 
 const quickPrompts = ['云盘', '体育场馆预约', '学生档案查询', '会议室预约'];
 
@@ -160,6 +182,7 @@ async function parseLoginResult(result: MonitorLoginResult) {
       .finally(() => {
         monitorLoading.value = false;
       });
+    return;
   }
 
   monitorLoginError.value = result.message || '登录失败，请检查账号和口令';
@@ -265,50 +288,119 @@ function defaultWelcomeMessages(): ChatMessage[] {
 </script>
 
 <template>
-  <main class="app-shell">
+  <main class="app-shell" :class="{ 'app-shell--monitor': isMonitorPage }">
     <template v-if="isMonitorPage">
-      <header class="app-header">
+      <header class="app-header monitor-header">
         <div class="app-header__identity">
-          <div class="brand-mark">
-            <Sparkles :size="19" />
+          <div class="brand-mark monitor-brand-mark">
+            <BarChart3 :size="19" />
           </div>
           <div>
-            <h1>AI办事监测看板</h1>
+            <p>AI Service Ops</p>
+            <h1>监测看板</h1>
           </div>
         </div>
-        <button class="ghost-button" type="button" @click="goHome">返回首页</button>
+        <button class="ghost-button monitor-back-button" type="button" @click="goHome">
+          <ArrowLeft :size="15" />
+          首页
+        </button>
       </header>
 
-      <section v-if="monitorRequireLogin" class="monitor-card">
-        <h2>监测后台登录</h2>
-        <p>此页面仅对管理员开放，请输入授权账号和口令。</p>
+      <section v-if="monitorRequireLogin" class="monitor-login-card">
+        <div class="monitor-login-card__glow"></div>
+        <div class="monitor-login-card__top">
+          <div class="monitor-lock">
+            <ShieldCheck :size="22" />
+          </div>
+          <div>
+            <p>授权访问</p>
+            <h2>监测后台登录</h2>
+          </div>
+        </div>
+        <p class="monitor-login-card__desc">查看事项点击、无结果问题和入口异常数据，帮助我们判断哪些办事最痛、哪里最卡。</p>
         <div class="monitor-form">
-          <input v-model="monitorLoginUserId" placeholder="用户ID（如工号/学号）" />
-          <input v-model="monitorLoginAccessCode" type="password" placeholder="访问口令（若未设置可留空）" />
+          <label class="monitor-field">
+            <UserRound :size="17" />
+            <input v-model="monitorLoginUserId" placeholder="用户ID（如工号/学号）" />
+          </label>
+          <label class="monitor-field">
+            <KeyRound :size="17" />
+            <input v-model="monitorLoginAccessCode" type="password" placeholder="访问口令" />
+          </label>
           <button :disabled="monitorLoginLoading" type="button" @click="handleMonitorLogin">
-            {{ monitorLoginLoading ? '登录中...' : '进入' }}
+            <LockKeyhole :size="17" />
+            {{ monitorLoginLoading ? '登录中...' : '进入看板' }}
           </button>
         </div>
-        <p v-if="monitorLoginError" class="monitor-empty">{{ monitorLoginError }}</p>
+        <p class="monitor-login-card__tip">仅白名单账号可进入，数据只用于校内办事体验优化。</p>
+        <p v-if="monitorLoginError" class="monitor-empty monitor-empty--error">{{ monitorLoginError }}</p>
       </section>
 
-      <section v-if="monitorLoading" class="monitor-empty">监测数据加载中...</section>
-      <section v-else-if="monitorError" class="monitor-empty">{{ monitorError }}</section>
+      <section v-if="monitorLoading" class="monitor-state">
+        <span></span>
+        监测数据加载中...
+      </section>
+      <section v-else-if="monitorError" class="monitor-state monitor-state--error">{{ monitorError }}</section>
       <template v-else-if="monitor">
-        <section class="monitor-card">
-          <h2>事项点击排行（过去 {{ monitor.days }} 天）</h2>
+        <section class="monitor-hero">
+          <div>
+            <p>过去 {{ monitor.days }} 天</p>
+            <h2>办事使用脉搏</h2>
+          </div>
+          <span>实时快照</span>
+        </section>
+
+        <section class="monitor-metrics" aria-label="监测指标概览">
+          <article>
+            <TrendingUp :size="18" />
+            <span>点击总量</span>
+            <strong>{{ monitorTotalClicks }}</strong>
+          </article>
+          <article>
+            <SearchX :size="18" />
+            <span>无结果</span>
+            <strong>{{ monitorNoResultTotal }}</strong>
+          </article>
+          <article>
+            <UsersRound :size="18" />
+            <span>身份来源</span>
+            <strong>{{ monitor.roleStats.length }}</strong>
+          </article>
+          <article>
+            <ShieldCheck :size="18" />
+            <span>入口异常</span>
+            <strong>{{ monitorSecondaryIssueTotal }}</strong>
+          </article>
+        </section>
+
+        <section class="monitor-card monitor-card--rank">
+          <div class="monitor-card__heading">
+            <div>
+              <span>Hot Services</span>
+              <h2>事项点击排行</h2>
+            </div>
+            <small>{{ monitor.days }} 天</small>
+          </div>
           <p v-if="!monitor.topServices.length" class="monitor-empty">暂无数据</p>
-          <ul v-else class="monitor-list">
-            <li v-for="item in monitor.topServices" :key="item.serviceItemId">
-              <strong>{{ item.title }}</strong>
-              <span>点击 {{ item.clicks }} 次</span>
-              <small>最新：{{ item.lastClick }} | 首次：{{ item.firstClick }}</small>
+          <ul v-else class="monitor-list monitor-list--rank">
+            <li v-for="(item, index) in monitor.topServices" :key="item.serviceItemId">
+              <b>{{ index + 1 }}</b>
+              <div>
+                <strong>{{ item.title }}</strong>
+                <small>最新：{{ item.lastClick }}</small>
+              </div>
+              <span>{{ item.clicks }} 次</span>
             </li>
           </ul>
         </section>
 
         <section class="monitor-card">
-          <h2>按身份统计（提问来源）</h2>
+          <div class="monitor-card__heading">
+            <div>
+              <span>Audience</span>
+              <h2>按身份统计</h2>
+            </div>
+          </div>
           <p v-if="!monitor.roleStats.length" class="monitor-empty">暂无数据</p>
           <ul v-else class="monitor-list">
             <li v-for="item in monitor.roleStats" :key="item.role">
@@ -320,7 +412,13 @@ function defaultWelcomeMessages(): ChatMessage[] {
         </section>
 
         <section class="monitor-card">
-          <h2>无结果问题（过去 {{ monitor.days }} 天）</h2>
+          <div class="monitor-card__heading">
+            <div>
+              <span>Missing Answers</span>
+              <h2>无结果问题</h2>
+            </div>
+            <small>{{ monitor.days }} 天</small>
+          </div>
           <p v-if="!monitor.noResultQuestions.length" class="monitor-empty">暂无无结果问题</p>
           <ul v-else class="monitor-list">
             <li v-for="item in monitor.noResultQuestions" :key="item.queryText">
@@ -332,7 +430,12 @@ function defaultWelcomeMessages(): ChatMessage[] {
         </section>
 
         <section class="monitor-card">
-          <h2>二次认证异常记录</h2>
+          <div class="monitor-card__heading">
+            <div>
+              <span>Access Issues</span>
+              <h2>入口异常记录</h2>
+            </div>
+          </div>
           <p v-if="!monitor.secondaryAuthIssues.hotItems.length" class="monitor-empty">暂无记录</p>
           <ul v-else class="monitor-list">
             <li v-for="item in monitor.secondaryAuthIssues.hotItems" :key="item.serviceItemId || 'unknown'">
