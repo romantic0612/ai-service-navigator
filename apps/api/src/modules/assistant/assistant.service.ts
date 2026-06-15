@@ -27,6 +27,11 @@ export class AssistantService {
 
     if (this.aiMemoryService.isGuideQuery(message)) {
       const guide = await this.aiMemoryService.generateGuide(profile, message);
+      await this.recordTurn(userId, message, {
+        action: 'guide',
+        responseText: guide.reply,
+        serviceCards: [],
+      });
       return {
         action: 'guide',
         message: guide.reply,
@@ -68,9 +73,20 @@ export class AssistantService {
           category: difyIntent?.category,
         },
       });
+      const responseText = '当前问题没匹配到稳定可办理的事项。你可以换一种说法，或补充办理对象、业务类型，我会继续从学校事项库里查。';
+      await this.recordTurn(userId, message, {
+        action: 'no_reliable_result',
+        responseText,
+        serviceCards: [],
+        usedDify: Boolean(difyIntent?.intent),
+        intent: difyIntent?.intent,
+        metadata: {
+          category: difyIntent?.category,
+        },
+      });
       return {
         action: 'no_reliable_result',
-        message: '当前问题没匹配到稳定可办理的事项。你可以换一种说法，或补充办理对象、业务类型，我会继续从学校事项库里查。',
+        message: responseText,
         profileUpdateCandidates,
       };
     }
@@ -83,6 +99,16 @@ export class AssistantService {
         message,
         replyMessage: messageText,
         serviceCards: alternatives,
+      });
+      await this.recordTurn(userId, message, {
+        action: 'role_mismatch',
+        responseText: messageText,
+        serviceCards: alternatives,
+        usedDify: Boolean(difyIntent?.intent),
+        intent: difyIntent?.intent,
+        metadata: {
+          mismatchedServiceIds: roleMismatchResult.items.map((item) => item.id),
+        },
       });
 
       return {
@@ -99,6 +125,16 @@ export class AssistantService {
       message,
       replyMessage: messageText,
       serviceCards,
+    });
+    await this.recordTurn(userId, message, {
+      action: 'recommend_service',
+      responseText: messageText,
+      serviceCards,
+      usedDify: Boolean(difyIntent?.intent),
+      intent: difyIntent?.intent,
+      metadata: {
+        matchedBy: searchResult.matchedBy,
+      },
     });
 
     return {
@@ -130,6 +166,29 @@ export class AssistantService {
       : '我没有返回这个不匹配入口，你可以换成当前身份可办理的事项再问。';
 
     return `这条事项和${roleText}不匹配。${targetText}。${alternativeText}`;
+  }
+
+  private async recordTurn(
+    userId: string,
+    queryText: string,
+    input: {
+      action: AssistantReply['action'];
+      responseText: string;
+      serviceCards?: ServiceItemCard[];
+      usedDify?: boolean;
+      intent?: string;
+      metadata?: Record<string, unknown>;
+    },
+  ) {
+    await this.profilesService.recordAssistantTurn(userId, {
+      queryText,
+      responseText: input.responseText,
+      action: input.action,
+      serviceCards: input.serviceCards,
+      usedDify: input.usedDify,
+      intent: input.intent,
+      metadata: input.metadata,
+    });
   }
 
   private mergeProfileCandidates(candidates: ProfileUpdateCandidate[]): ProfileUpdateCandidate[] {

@@ -139,6 +139,26 @@ CREATE TABLE IF NOT EXISTS `user_events` (
     ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `assistant_turns` (
+  `id` VARCHAR(191) NOT NULL,
+  `user_id` VARCHAR(191) NOT NULL,
+  `query_text` TEXT NOT NULL,
+  `response_text` TEXT NOT NULL,
+  `action` VARCHAR(191) NOT NULL,
+  `matched_service_ids` JSON NULL,
+  `service_cards` JSON NULL,
+  `used_dify` BOOLEAN NOT NULL DEFAULT FALSE,
+  `intent` VARCHAR(191) NULL,
+  `metadata` JSON NULL,
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `assistant_turns_user_id_created_at_idx` (`user_id`, `created_at`),
+  KEY `assistant_turns_action_created_at_idx` (`action`, `created_at`),
+  CONSTRAINT `assistant_turns_user_id_fkey`
+    FOREIGN KEY (`user_id`) REFERENCES `user_profiles` (`user_id`)
+    ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `recommend_rules` (
   `id` VARCHAR(191) NOT NULL,
   `name` VARCHAR(191) NOT NULL,

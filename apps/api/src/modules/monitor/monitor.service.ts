@@ -30,6 +30,7 @@ export class MonitorService {
       visitorSummary,
       studentTopQuestions,
       teacherTopQuestions,
+      recentAssistantTurns,
     ] = await Promise.all([
       this.getServiceClickRank({ days, limit: 10 }),
       this.getRoleStats({ days }),
@@ -41,6 +42,7 @@ export class MonitorService {
       this.getVisitorSummary(),
       this.getTopQuestionsByRoles({ days, limit: 10 }, ['本科生', '研究生']),
       this.getTopQuestionsByRoles({ days, limit: 10 }, ['教职工']),
+      this.getRecentAssistantTurns(30),
     ]);
 
     return {
@@ -55,6 +57,7 @@ export class MonitorService {
       visitorSummary,
       studentTopQuestions,
       teacherTopQuestions,
+      recentAssistantTurns,
       updatedAt: this.formatRuntimeTime(new Date()),
     };
   }
@@ -410,6 +413,60 @@ export class MonitorService {
       totalVisitors: Number(totalRows[0]?.totalVisitors ?? 0),
       todayActiveVisitors: Number(todayRows[0]?.todayActiveVisitors ?? 0),
     };
+  }
+
+  async getRecentAssistantTurns(limit = 30) {
+    try {
+      const normalizedLimit = Math.min(this.maxLimit, Math.max(5, limit));
+      const rows = await this.prisma.$queryRaw<
+        Array<{
+          id: string;
+          userId: string;
+          userName: string | null;
+          userRole: string | null;
+          queryText: string;
+          responseText: string;
+          action: string;
+          matchedServiceIds: Prisma.JsonValue;
+          usedDify: boolean;
+          intent: string | null;
+          createdAt: Date;
+        }>
+      >(Prisma.sql`
+        SELECT
+          t.id,
+          t.user_id AS userId,
+          p.name AS userName,
+          p.role AS userRole,
+          t.query_text AS queryText,
+          t.response_text AS responseText,
+          t.action,
+          t.matched_service_ids AS matchedServiceIds,
+          t.used_dify AS usedDify,
+          t.intent,
+          t.created_at AS createdAt
+        FROM assistant_turns t
+        LEFT JOIN user_profiles p ON p.user_id = t.user_id
+        ORDER BY t.created_at DESC
+        LIMIT ${normalizedLimit}
+      `);
+
+      return rows.map((row) => ({
+        id: row.id,
+        userId: row.userId,
+        userName: row.userName || '匿名用户',
+        userRole: row.userRole || '未知身份',
+        queryText: row.queryText,
+        responseText: row.responseText,
+        action: row.action,
+        matchedServiceIds: row.matchedServiceIds,
+        usedDify: Boolean(row.usedDify),
+        intent: row.intent ?? undefined,
+        createdAt: this.formatDisplayTime(row.createdAt),
+      }));
+    } catch {
+      return [];
+    }
   }
 
   private normalizeDays(days?: number) {

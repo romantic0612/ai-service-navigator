@@ -21,6 +21,16 @@ export type NormalizedOAuthProfile = {
   oauthRaw: Record<string, string>;
 };
 
+export type RecordAssistantTurnInput = {
+  queryText: string;
+  responseText: string;
+  action: string;
+  serviceCards?: Array<{ id: string; [key: string]: unknown }>;
+  usedDify?: boolean;
+  intent?: string;
+  metadata?: Record<string, unknown>;
+};
+
 @Injectable()
 export class ProfilesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -216,6 +226,36 @@ export class ProfilesService {
     } catch {
       return { recorded: false, reason: 'database_unavailable' };
     }
+  }
+
+  async recordAssistantTurn(userId: string, dto: RecordAssistantTurnInput) {
+    try {
+      await this.ensureUserProfile(userId);
+      const serviceCards = dto.serviceCards ?? [];
+      const serviceCardsJson = this.toJsonValue(serviceCards);
+      await (this.prisma as any).assistantTurn.create({
+        data: {
+          userId,
+          queryText: dto.queryText,
+          responseText: dto.responseText,
+          action: dto.action,
+          matchedServiceIds: serviceCards.map((card) => card.id),
+          serviceCards: serviceCardsJson,
+          usedDify: Boolean(dto.usedDify),
+          intent: dto.intent,
+          metadata: this.toJsonValue(dto.metadata ?? {}),
+          createdAt: databaseNow(),
+        },
+      });
+
+      return { recorded: true };
+    } catch {
+      return { recorded: false, reason: 'database_unavailable_or_table_missing' };
+    }
+  }
+
+  private toJsonValue(value: unknown) {
+    return JSON.parse(JSON.stringify(value));
   }
 
   private async ensureUserProfile(userId: string) {

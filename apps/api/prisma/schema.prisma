@@ -50,6 +50,7 @@ model UserProfile {
   preference UserPreferenceProfile?
   memories   UserMemory[]
   events     UserEvent[]
+  assistantTurns AssistantTurn[]
 
   @@map("user_profiles")
 }
@@ -159,6 +160,26 @@ model UserEvent {
   @@index([userId, eventType])
   @@index([serviceItemId])
   @@map("user_events")
+}
+
+model AssistantTurn {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  queryText         String   @db.Text @map("query_text")
+  responseText      String   @db.Text @map("response_text")
+  action            String
+  matchedServiceIds Json?    @map("matched_service_ids")
+  serviceCards      Json?    @map("service_cards")
+  usedDify          Boolean  @default(false) @map("used_dify")
+  intent            String?
+  metadata          Json?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  user UserProfile @relation(fields: [userId], references: [userId])
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@map("assistant_turns")
 }
 
 model RecommendRule {

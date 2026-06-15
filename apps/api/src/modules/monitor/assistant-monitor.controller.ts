@@ -124,4 +124,10 @@ export class AssistantMonitorController {
       limit: Number.parseInt(limit, 10),
     });
   }
+
+  @UseGuards(MonitorAuthGuard)
+  @Get('assistant-turns')
+  getRecentAssistantTurns(@Query('limit') limit = '30') {
+    return this.monitorService.getRecentAssistantTurns(Number.parseInt(limit, 10));
+  }
 }
