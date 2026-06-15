@@ -111,7 +111,15 @@ export type MonitorOverview = {
   trend: MonitorTrendItem[];
   hourlyActivity: MonitorHourlyActivityItem[];
   topQuestions: MonitorTopQuestionItem[];
+  visitorSummary: MonitorVisitorSummary;
+  studentTopQuestions: MonitorTopQuestionItem[];
+  teacherTopQuestions: MonitorTopQuestionItem[];
   updatedAt: string;
+};
+
+export type MonitorVisitorSummary = {
+  totalVisitors: number;
+  todayActiveVisitors: number;
 };
 
 export type MonitorTrendItem = {

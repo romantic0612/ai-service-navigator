@@ -98,6 +98,19 @@ const monitorHourlyPeak = computed(() => {
 const monitorTopQuestionPeak = computed(() =>
   Math.max(...(monitor.value?.topQuestions.map((item) => item.count) ?? [1]), 1),
 );
+const monitorVisitorTrend = computed(() =>
+  (monitor.value?.trend ?? []).map((item) => ({
+    day: item.day,
+    visitors: Math.max(item.activeUsers, item.logins),
+  })),
+);
+const monitorVisitorPeak = computed(() => Math.max(...monitorVisitorTrend.value.map((item) => item.visitors), 1));
+const monitorStudentQuestionPeak = computed(() =>
+  Math.max(...(monitor.value?.studentTopQuestions.map((item) => item.count) ?? [1]), 1),
+);
+const monitorTeacherQuestionPeak = computed(() =>
+  Math.max(...(monitor.value?.teacherTopQuestions.map((item) => item.count) ?? [1]), 1),
+);
 
 const quickPrompts = ['云盘', '体育场馆预约', '学生档案查询', '会议室预约'];
 
@@ -315,15 +328,27 @@ function monitorLinePoints(values: number[], total: number) {
   }
 
   const width = 300;
-  const height = 84;
+  const height = 132;
   const step = values.length > 1 ? width / (values.length - 1) : width;
   return values
     .map((value, index) => {
       const x = Math.round(index * step);
-      const y = Math.round(height - (value / total) * 68 - 8);
+      const y = Math.round(height - (value / total) * 108 - 8);
       return `${x},${y}`;
     })
     .join(' ');
+}
+
+function monitorPointX(index: number, length: number) {
+  if (length <= 1) {
+    return 150;
+  }
+
+  return Math.round(index * (300 / (length - 1)));
+}
+
+function monitorPointY(value: number, total: number) {
+  return Math.round(124 - (value / total) * 108);
 }
 
 function defaultWelcomeMessages(): ChatMessage[] {
@@ -372,7 +397,7 @@ function defaultWelcomeMessages(): ChatMessage[] {
             <h2>监测后台登录</h2>
           </div>
         </div>
-        <p class="monitor-login-card__desc">查看事项点击、无结果问题和入口异常数据，帮助我们判断哪些办事最痛、哪里最卡。</p>
+        <p class="monitor-login-card__desc">查看实时访客量、访问人数趋势、学生和老师常问问题，用数据反推首页痛点推荐。</p>
         <div class="monitor-form">
           <label class="monitor-field">
             <UserRound :size="17" />
@@ -397,223 +422,96 @@ function defaultWelcomeMessages(): ChatMessage[] {
       </section>
       <section v-else-if="monitorError" class="monitor-state monitor-state--error">{{ monitorError }}</section>
       <template v-else-if="monitor">
-        <section class="monitor-hero">
+        <section class="monitor-hero monitor-hero--visitors">
           <div>
-            <p>过去 {{ monitor.days }} 天</p>
-            <h2>实时使用趋势</h2>
+            <p>实时同步数据库</p>
+            <h2>总访客量 {{ monitor.visitorSummary.totalVisitors }}</h2>
           </div>
-          <span>{{ monitor.updatedAt }}</span>
+          <span>今日活跃 {{ monitor.visitorSummary.todayActiveVisitors }}</span>
         </section>
 
-        <section class="monitor-metrics" aria-label="监测指标概览">
-          <article>
-            <TrendingUp :size="18" />
-            <span>办理跳转</span>
-            <strong>{{ monitorTotalClicks }}</strong>
-          </article>
-          <article>
-            <Target :size="18" />
-            <span>AI命中率</span>
-            <strong>{{ monitorHitRate }}%</strong>
-          </article>
-          <article>
-            <SearchX :size="18" />
-            <span>无结果率</span>
-            <strong>{{ monitorNoResultRate }}%</strong>
-          </article>
-          <article>
-            <UsersRound :size="18" />
-            <span>登录/活跃</span>
-            <strong>{{ monitorLoginTotal }}</strong>
-          </article>
-        </section>
-
-        <section class="monitor-chart-card">
+        <section class="monitor-chart-card monitor-chart-card--primary">
           <div class="monitor-card__heading">
             <div>
-              <span>Trend</span>
-              <h2>访问是否在增加</h2>
-            </div>
-            <small>最新 {{ monitorLatestTrend?.day || '-' }}</small>
-          </div>
-          <div class="monitor-line-chart">
-            <svg viewBox="0 0 300 92" role="img" aria-label="每日提问和办理跳转趋势">
-              <polyline
-                :points="monitorLinePoints(monitor.trend.map((item) => item.asks), monitorTrendPeak)"
-                class="monitor-line-chart__asks"
-              />
-              <polyline
-                :points="monitorLinePoints(monitor.trend.map((item) => item.serviceOpens), monitorTrendPeak)"
-                class="monitor-line-chart__opens"
-              />
-            </svg>
-          </div>
-          <div class="monitor-trend-table">
-            <article v-for="item in monitor.trend" :key="item.day">
-              <header>
-                <strong>{{ item.day }}</strong>
-                <span>{{ item.activeUsers }} 人活跃</span>
-              </header>
-              <div>
-                <label>提问</label>
-                <i><b :style="{ width: monitorBarWidth(item.asks, monitorTrendPeak) }"></b></i>
-                <em>{{ item.asks }}</em>
-              </div>
-              <div>
-                <label>跳转</label>
-                <i><b :style="{ width: monitorBarWidth(item.serviceOpens, monitorTrendPeak) }"></b></i>
-                <em>{{ item.serviceOpens }}</em>
-              </div>
-              <div>
-                <label>登录</label>
-                <i><b :style="{ width: monitorBarWidth(item.logins, monitorTrendPeak) }"></b></i>
-                <em>{{ item.logins }}</em>
-              </div>
-            </article>
-            <p v-if="!monitor.trend.length" class="monitor-empty">暂无趋势数据</p>
-          </div>
-          <div class="monitor-chart-legend">
-            <span><i class="legend-ask"></i>提问</span>
-            <span><i class="legend-open"></i>办理跳转</span>
-            <span><i class="legend-login"></i>登录/活跃</span>
-          </div>
-        </section>
-
-        <section class="monitor-chart-card">
-          <div class="monitor-card__heading">
-            <div>
-              <span>Time Slot</span>
-              <h2>哪个时间段使用最多</h2>
-            </div>
-            <small>24 小时</small>
-          </div>
-          <div class="monitor-hour-list">
-            <article
-              v-for="item in monitor.hourlyActivity.filter((hourItem) => hourItem.asks + hourItem.logins + hourItem.serviceOpens > 0)"
-              :key="item.hour"
-            >
-              <strong>{{ item.label }}</strong>
-              <div>
-                <i :style="{ width: monitorBarWidth(item.asks + item.logins + item.serviceOpens, monitorHourlyPeak) }"></i>
-              </div>
-              <span>{{ item.asks + item.logins + item.serviceOpens }} 次</span>
-              <small>提问 {{ item.asks }} / 跳转 {{ item.serviceOpens }} / 登录 {{ item.logins }}</small>
-            </article>
-            <p
-              v-if="!monitor.hourlyActivity.some((hourItem) => hourItem.asks + hourItem.logins + hourItem.serviceOpens > 0)"
-              class="monitor-empty"
-            >
-              暂无分时数据
-            </p>
-          </div>
-        </section>
-
-        <section class="monitor-card monitor-card--rank">
-          <div class="monitor-card__heading">
-            <div>
-              <span>Hot Services</span>
-              <h2>事项点击排行</h2>
+              <span>Visitor Trend</span>
+              <h2>访问人数趋势</h2>
             </div>
             <small>{{ monitor.days }} 天</small>
           </div>
-          <p v-if="!monitor.topServices.length" class="monitor-empty">暂无数据</p>
-          <ul v-else class="monitor-list monitor-list--rank">
-            <li v-for="(item, index) in monitor.topServices" :key="item.serviceItemId">
-              <b>{{ index + 1 }}</b>
-              <div>
-                <strong>{{ item.title }}</strong>
-                <small>最新：{{ item.lastClick }}</small>
-                <i :style="{ width: monitorBarWidth(item.clicks, monitorTopServicePeak) }"></i>
+          <div class="monitor-axis-chart">
+            <div class="monitor-axis-chart__y">
+              <span>{{ monitorVisitorPeak }}</span>
+              <span>{{ Math.ceil(monitorVisitorPeak / 2) }}</span>
+              <span>0</span>
+            </div>
+            <div class="monitor-axis-chart__plot">
+              <svg viewBox="0 0 300 132" role="img" aria-label="访问人数随时间变化图">
+                <polyline
+                  :points="monitorLinePoints(monitorVisitorTrend.map((item) => item.visitors), monitorVisitorPeak)"
+                  class="monitor-axis-chart__line"
+                />
+                <circle
+                  v-for="(item, index) in monitorVisitorTrend"
+                  :key="item.day"
+                  :cx="monitorPointX(index, monitorVisitorTrend.length)"
+                  :cy="monitorPointY(item.visitors, monitorVisitorPeak)"
+                  r="4"
+                />
+              </svg>
+              <div class="monitor-axis-chart__x">
+                <span v-for="item in monitorVisitorTrend" :key="item.day">{{ item.day }}</span>
               </div>
-              <span>{{ item.clicks }} 次</span>
-            </li>
-          </ul>
+            </div>
+          </div>
+          <div class="monitor-chart-summary">
+            <article v-for="item in monitorVisitorTrend" :key="item.day">
+              <strong>{{ item.visitors }}</strong>
+              <span>{{ item.day }} 人数</span>
+            </article>
+          </div>
         </section>
 
-        <section v-if="monitor.noResultQuestions.length" class="monitor-card">
+        <section class="monitor-card">
           <div class="monitor-card__heading">
             <div>
-              <span>Top Questions</span>
-              <h2>师生问什么最多</h2>
+              <span>Student Questions</span>
+              <h2>学生常问什么</h2>
             </div>
             <small>{{ monitor.days }} 天</small>
           </div>
-          <p v-if="!monitor.topQuestions.length" class="monitor-empty">暂无提问数据</p>
+          <p v-if="!monitor.studentTopQuestions.length" class="monitor-empty">暂无学生提问数据</p>
           <ul v-else class="monitor-list monitor-list--questions">
-            <li v-for="item in monitor.topQuestions" :key="item.queryText">
+            <li v-for="item in monitor.studentTopQuestions" :key="item.queryText">
               <div>
                 <strong>{{ item.queryText }}</strong>
                 <small>{{ item.users }} 人问过 · 最近 {{ item.latestAt }}</small>
-                <i :style="{ width: monitorBarWidth(item.count, monitorTopQuestionPeak) }"></i>
+                <i :style="{ width: monitorBarWidth(item.count, monitorStudentQuestionPeak) }"></i>
               </div>
               <span>{{ item.count }} 次</span>
             </li>
           </ul>
         </section>
 
-        <section v-if="monitor.secondaryAuthIssues.hotItems.length || monitor.secondaryAuthIssues.recentCases.length" class="monitor-card">
-          <div class="monitor-card__heading">
-            <div>
-              <span>Audience</span>
-              <h2>按身份统计</h2>
-            </div>
-          </div>
-          <p v-if="!monitor.roleStats.length" class="monitor-empty">暂无数据</p>
-          <ul v-else class="monitor-list">
-            <li v-for="item in monitor.roleStats" :key="item.role">
-              <strong>{{ item.role }}</strong>
-              <span>提问 {{ item.askCount }} 条 / {{ item.affectedUsers }} 人</span>
-              <small>{{ item.rate }}%</small>
-            </li>
-          </ul>
-        </section>
-
         <section class="monitor-card">
           <div class="monitor-card__heading">
             <div>
-              <span>Missing Answers</span>
-              <h2>无结果问题</h2>
+              <span>Teacher Questions</span>
+              <h2>老师常问什么</h2>
             </div>
             <small>{{ monitor.days }} 天</small>
           </div>
-          <p v-if="!monitor.noResultQuestions.length" class="monitor-empty">暂无无结果问题</p>
-          <ul v-else class="monitor-list">
-            <li v-for="item in monitor.noResultQuestions" :key="item.queryText">
-              <strong>{{ item.queryText }}</strong>
-              <span>出现 {{ item.count }} 次</span>
-              <small>首次：{{ item.firstAt }} | 最近：{{ item.lastAt }}</small>
+          <p v-if="!monitor.teacherTopQuestions.length" class="monitor-empty">暂无老师提问数据</p>
+          <ul v-else class="monitor-list monitor-list--questions">
+            <li v-for="item in monitor.teacherTopQuestions" :key="item.queryText">
+              <div>
+                <strong>{{ item.queryText }}</strong>
+                <small>{{ item.users }} 人问过 · 最近 {{ item.latestAt }}</small>
+                <i :style="{ width: monitorBarWidth(item.count, monitorTeacherQuestionPeak) }"></i>
+              </div>
+              <span>{{ item.count }} 次</span>
             </li>
           </ul>
-        </section>
-
-        <section class="monitor-card">
-          <div class="monitor-card__heading">
-            <div>
-              <span>Access Issues</span>
-              <h2>入口异常记录</h2>
-            </div>
-          </div>
-          <p v-if="!monitor.secondaryAuthIssues.hotItems.length" class="monitor-empty">暂无记录</p>
-          <ul v-else class="monitor-list">
-            <li v-for="item in monitor.secondaryAuthIssues.hotItems" :key="item.serviceItemId || 'unknown'">
-              <strong>{{ item.title }}</strong>
-              <span>异常 {{ item.issues }} 次</span>
-              <small>最近：{{ item.latestAt }}</small>
-            </li>
-          </ul>
-          <h3 class="monitor-subtitle">最新上报</h3>
-          <ul v-if="monitor.secondaryAuthIssues.recentCases.length" class="monitor-list">
-            <li
-              v-for="item in monitor.secondaryAuthIssues.recentCases"
-              :key="item.id"
-            >
-              <strong>{{ item.userName || item.userId }}</strong>
-              <span>{{ item.userRole }}</span>
-              <small>{{ item.createdAt }}</small>
-            </li>
-          </ul>
-        </section>
-      </template>
+        </section>      </template>
     </template>
 
     <template v-else>
@@ -699,3 +597,4 @@ function defaultWelcomeMessages(): ChatMessage[] {
     </template>
   </main>
 </template>
+

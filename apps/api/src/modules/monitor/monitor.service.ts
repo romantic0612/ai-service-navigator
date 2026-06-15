@@ -20,7 +20,18 @@ export class MonitorService {
 
   async getOverview(query: { days?: number }) {
     const days = this.normalizeDays(query.days);
-    const [topServices, roleStats, noResultQuestions, authIssues, trend, hourlyActivity, topQuestions] = await Promise.all([
+    const [
+      topServices,
+      roleStats,
+      noResultQuestions,
+      authIssues,
+      trend,
+      hourlyActivity,
+      topQuestions,
+      visitorSummary,
+      studentTopQuestions,
+      teacherTopQuestions,
+    ] = await Promise.all([
       this.getServiceClickRank({ days, limit: 10 }),
       this.getRoleStats({ days }),
       this.getNoResultQuestions({ days, limit: 20 }),
@@ -28,6 +39,9 @@ export class MonitorService {
       this.getUsageTrend({ days }),
       this.getHourlyActivity({ days }),
       this.getTopQuestions({ days, limit: 12 }),
+      this.getVisitorSummary(),
+      this.getTopQuestionsByRoles({ days, limit: 10 }, ['本科生', '研究生']),
+      this.getTopQuestionsByRoles({ days, limit: 10 }, ['教职工']),
     ]);
 
     return {
@@ -39,6 +53,9 @@ export class MonitorService {
       trend,
       hourlyActivity,
       topQuestions,
+      visitorSummary,
+      studentTopQuestions,
+      teacherTopQuestions,
       updatedAt: this.formatDisplayTime(new Date()),
     };
   }
@@ -344,6 +361,56 @@ export class MonitorService {
       users: Number(row.users),
       latestAt: this.formatDisplayTime(row.latestAt),
     }));
+  }
+
+  async getTopQuestionsByRoles(query: MonitorListOptions, roles: string[]) {
+    const { days, limit } = this.normalizeRange(query);
+    const from = this.dateFrom(days);
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{ queryText: string | null; count: bigint; latestAt: Date; users: bigint }>
+    >(Prisma.sql`
+      SELECT e.query_text AS queryText,
+             COUNT(*) AS count,
+             MAX(e.created_at) AS latestAt,
+             COUNT(DISTINCT e.user_id) AS users
+      FROM user_events e
+      LEFT JOIN user_profiles p ON e.user_id = p.user_id
+      WHERE e.event_type = 'ask'
+        AND e.created_at >= ${from}
+        AND e.query_text IS NOT NULL
+        AND e.query_text <> ''
+        AND p.role IN (${Prisma.join(roles)})
+      GROUP BY e.query_text
+      ORDER BY count DESC, latestAt DESC
+      LIMIT ${limit}
+    `);
+
+    return rows.map((row) => ({
+      queryText: row.queryText ?? '未知问题',
+      count: Number(row.count),
+      users: Number(row.users),
+      latestAt: this.formatDisplayTime(row.latestAt),
+    }));
+  }
+
+  async getVisitorSummary() {
+    const [totalRows, todayRows] = await Promise.all([
+      this.prisma.$queryRaw<Array<{ totalVisitors: bigint }>>(Prisma.sql`
+        SELECT COUNT(*) AS totalVisitors
+        FROM user_profiles
+      `),
+      this.prisma.$queryRaw<Array<{ todayActiveVisitors: bigint }>>(Prisma.sql`
+        SELECT COUNT(*) AS todayActiveVisitors
+        FROM user_profiles
+        WHERE DATE(updated_at) = CURDATE()
+      `),
+    ]);
+
+    return {
+      totalVisitors: Number(totalRows[0]?.totalVisitors ?? 0),
+      todayActiveVisitors: Number(todayRows[0]?.todayActiveVisitors ?? 0),
+    };
   }
 
   private normalizeDays(days?: number) {
