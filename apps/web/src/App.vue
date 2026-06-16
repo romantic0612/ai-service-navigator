@@ -382,8 +382,8 @@ async function setUnmetPriority(item: MonitorUnmetNeedItem, priority: 'high' | '
     await loadMonitorData();
     expandedUnmetCategory.value = item.suggestedCategory;
     monitorActionMessage.value = `已把“${item.suggestedIntent}”标记为${monitorPriorityText(priority)}`;
-  } catch {
-    monitorActionMessage.value = '优先级更新失败，请重新登录后台后再试';
+  } catch (err) {
+    monitorActionMessage.value = `优先级更新失败：${monitorActionErrorText(err)}`;
   } finally {
     monitorBusyNeedKey.value = '';
   }
@@ -401,8 +401,8 @@ async function resolveUnmetItem(item: MonitorUnmetNeedItem) {
     });
     await loadMonitorData();
     monitorActionMessage.value = `已落实“${item.suggestedIntent}”，并给相关用户生成提醒`;
-  } catch {
-    monitorActionMessage.value = '落实失败，请重新登录后台后再试';
+  } catch (err) {
+    monitorActionMessage.value = `落实失败：${monitorActionErrorText(err)}`;
   } finally {
     monitorBusyNeedKey.value = '';
   }
@@ -415,11 +415,24 @@ async function archiveUnmetItem(item: MonitorUnmetNeedItem) {
     await archiveMonitorUnmetNeed(item.key);
     await loadMonitorData();
     monitorActionMessage.value = `已隐藏“${item.suggestedIntent}”`;
-  } catch {
-    monitorActionMessage.value = '隐藏失败，请重新登录后台后再试';
+  } catch (err) {
+    monitorActionMessage.value = `隐藏失败：${monitorActionErrorText(err)}`;
   } finally {
     monitorBusyNeedKey.value = '';
   }
+}
+
+function monitorActionErrorText(err: unknown) {
+  const response = (err as { response?: { status?: number; data?: { message?: string } } }).response;
+  if (response?.status === 401 || response?.status === 403) {
+    return '后台登录态失效或账号无权限，请重新进入监测后台';
+  }
+
+  if (response?.status && response.status >= 500) {
+    return '服务器写入失败，请检查 unmet_need_reviews / user_notifications 表是否已执行最新 SQL';
+  }
+
+  return response?.data?.message || '网络或接口异常，请稍后重试';
 }
 
 const pendingCandidates = computed(() => {
