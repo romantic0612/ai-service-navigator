@@ -116,6 +116,53 @@ const monitorTeacherQuestionPeak = computed(() =>
 );
 const monitorUnmetNeedChart = computed(() => (monitor.value?.unmetNeeds.items ?? []).slice(0, 6));
 const monitorUnmetNeedPeak = computed(() => Math.max(...monitorUnmetNeedChart.value.map((item) => item.count), 1));
+const monitorUnmetNeedSummary = computed(() => {
+  const buckets = new Map<
+    string,
+    {
+      category: string;
+      count: number;
+      users: number;
+      intents: string[];
+      actions: Map<string, number>;
+      priority: 'high' | 'medium' | 'low';
+    }
+  >();
+  const priorityRank = { high: 3, medium: 2, low: 1 };
+
+  for (const item of monitor.value?.unmetNeeds.items ?? []) {
+    const bucket = buckets.get(item.suggestedCategory) ?? {
+      category: item.suggestedCategory,
+      count: 0,
+      users: 0,
+      intents: [],
+      actions: new Map<string, number>(),
+      priority: 'low' as const,
+    };
+    bucket.count += item.count;
+    bucket.users += item.users;
+    if (!bucket.intents.includes(item.suggestedIntent)) {
+      bucket.intents.push(item.suggestedIntent);
+    }
+    bucket.actions.set(item.suggestedAction, (bucket.actions.get(item.suggestedAction) ?? 0) + item.count);
+    if (priorityRank[item.priority] > priorityRank[bucket.priority]) {
+      bucket.priority = item.priority;
+    }
+    buckets.set(item.suggestedCategory, bucket);
+  }
+
+  return [...buckets.values()]
+    .sort((left, right) => right.count - left.count)
+    .slice(0, 5)
+    .map((bucket) => ({
+      category: bucket.category,
+      count: bucket.count,
+      users: bucket.users,
+      intents: bucket.intents.slice(0, 3),
+      action: [...bucket.actions.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? '补充事项库',
+      priority: bucket.priority,
+    }));
+});
 
 const quickPrompts = computed(() => {
   if (profile.value?.role === '教职工') {
@@ -359,6 +406,16 @@ function monitorPriorityText(priority: 'high' | 'medium' | 'low') {
   }
 
   return '低优先级';
+}
+
+function monitorUnmetStatusText(status: 'local' | 'pending' | 'ready', modelEnabled: boolean) {
+  if (status === 'ready') {
+    return 'MiniMax 已归类';
+  }
+  if (modelEnabled) {
+    return '后台归类中';
+  }
+  return '本地规则归类';
 }
 
 function monitorRoleColor(index: number) {
@@ -663,10 +720,10 @@ function defaultWelcomeMessages(): ChatMessage[] {
               <span>Unmet Needs</span>
               <h2>未满足需求池</h2>
             </div>
-            <small>{{ monitor.unmetNeeds.modelEnabled ? 'MiniMax 已归类' : '本地规则归类' }}</small>
+            <small>{{ monitorUnmetStatusText(monitor.unmetNeeds.classificationStatus, monitor.unmetNeeds.modelEnabled) }}</small>
           </div>
           <p class="monitor-unmet-summary">
-            {{ monitor.days }} 天内发现 {{ monitor.unmetNeeds.total }} 条未被直接满足的对话，用来反推事项库、关键词和身份规则。
+            {{ monitor.days }} 天内发现 {{ monitor.unmetNeeds.total }} 条未被直接满足的对话，已聚合成 {{ monitor.unmetNeeds.items.length }} 类待优化需求。
           </p>
           <p v-if="!monitor.unmetNeeds.items.length" class="monitor-empty">暂无未满足需求</p>
           <div v-else class="monitor-column-chart monitor-column-chart--unmet" aria-label="未满足需求柱状图">
@@ -694,28 +751,20 @@ function defaultWelcomeMessages(): ChatMessage[] {
             </div>
           </div>
 
-          <div v-if="monitor.unmetNeeds.items.length" class="monitor-unmet-list">
-            <article v-for="item in monitor.unmetNeeds.items.slice(0, 8)" :key="item.key">
+          <div v-if="monitorUnmetNeedSummary.length" class="monitor-unmet-list monitor-unmet-list--summary">
+            <article v-for="item in monitorUnmetNeedSummary" :key="item.category">
               <header>
                 <div>
-                  <strong>{{ item.suggestedIntent }}</strong>
-                  <span>{{ item.suggestedCategory }} · {{ item.primaryRole }} · {{ item.users }} 人 / {{ item.count }} 次</span>
+                  <strong>{{ item.category }}</strong>
+                  <span>{{ item.users }} 人 / {{ item.count }} 次 · 代表问题：{{ item.intents.join('、') }}</span>
                 </div>
                 <b :class="`monitor-priority monitor-priority--${item.priority}`">{{ monitorPriorityText(item.priority) }}</b>
               </header>
-              <p>{{ item.reason }}</p>
+              <p>建议处理：{{ item.action }}。先从这一类里最高频的问题补事项、补关键词或复核身份规则。</p>
               <div class="monitor-unmet-tags">
-                <span>{{ item.suggestedAction }}</span>
-                <span v-for="keyword in item.suggestedKeywords" :key="`${item.key}-${keyword}`">{{ keyword }}</span>
+                <span>{{ item.action }}</span>
+                <span v-for="intent in item.intents" :key="`${item.category}-${intent}`">{{ intent }}</span>
               </div>
-              <details>
-                <summary>查看原始聊天样例</summary>
-                <div v-for="sample in item.samples" :key="`${item.key}-${sample.userId}-${sample.createdAt}`">
-                  <strong>{{ sample.queryText }}</strong>
-                  <span>{{ sample.userName }} · {{ sample.userRole }}{{ sample.college ? ` · ${sample.college}` : '' }} · {{ sample.createdAt }}</span>
-                  <small>{{ sample.responseText }}</small>
-                </div>
-              </details>
             </article>
           </div>
         </section>

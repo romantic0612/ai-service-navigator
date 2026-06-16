@@ -25,6 +25,7 @@ type UnmetNeedsResult = {
   days: number;
   total: number;
   modelEnabled: boolean;
+  classificationStatus: 'local' | 'pending' | 'ready';
   items: Array<Record<string, unknown>>;
   generatedAt: string;
 };
@@ -40,6 +41,7 @@ export class MonitorService {
         value: UnmetNeedsResult;
       }
     | undefined;
+  private readonly unmetNeedsClassifyInFlight = new Set<string>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -541,7 +543,25 @@ export class MonitorService {
     `);
 
     const grouped = this.groupUnmetNeedRows(rows, limit);
-    const modelGroups = await this.classifyUnmetNeeds(grouped);
+    const result = this.buildUnmetNeedsResult(days, rows.length, grouped, [], 'pending');
+    this.unmetNeedsCache = {
+      key: cacheKey,
+      expiresAt: Date.now() + 2 * 60 * 1000,
+      value: result,
+    };
+
+    this.classifyUnmetNeedsInBackground(cacheKey, days, rows.length, grouped);
+
+    return result;
+  }
+
+  private buildUnmetNeedsResult(
+    days: number,
+    total: number,
+    grouped: ReturnType<MonitorService['groupUnmetNeedRows']>,
+    modelGroups: UnmetNeedModelGroup[],
+    fallbackStatus: 'local' | 'pending' | 'ready',
+  ): UnmetNeedsResult {
     const modelByKey = new Map(modelGroups.map((group) => [group.key, group]));
     const items = grouped.map((group) => {
       const model = modelByKey.get(group.key);
@@ -556,21 +576,44 @@ export class MonitorService {
       };
     });
 
-    const result = {
+    const classificationStatus =
+      modelGroups.length > 0 ? 'ready' : this.miniMaxService.isEnabled() ? fallbackStatus : 'local';
+
+    return {
       days,
-      total: rows.length,
+      total,
       modelEnabled: this.miniMaxService.isEnabled(),
+      classificationStatus,
       items,
       generatedAt: this.formatRuntimeTime(new Date()),
     };
+  }
 
-    this.unmetNeedsCache = {
-      key: cacheKey,
-      expiresAt: Date.now() + 5 * 60 * 1000,
-      value: result,
-    };
+  private classifyUnmetNeedsInBackground(
+    cacheKey: string,
+    days: number,
+    total: number,
+    grouped: ReturnType<MonitorService['groupUnmetNeedRows']>,
+  ): void {
+    if (!this.miniMaxService.isEnabled() || grouped.length === 0 || this.unmetNeedsClassifyInFlight.has(cacheKey)) {
+      return;
+    }
 
-    return result;
+    this.unmetNeedsClassifyInFlight.add(cacheKey);
+    void this.classifyUnmetNeeds(grouped)
+      .then((modelGroups) => {
+        if (modelGroups.length === 0) {
+          return;
+        }
+        this.unmetNeedsCache = {
+          key: cacheKey,
+          expiresAt: Date.now() + 10 * 60 * 1000,
+          value: this.buildUnmetNeedsResult(days, total, grouped, modelGroups, 'ready'),
+        };
+      })
+      .finally(() => {
+        this.unmetNeedsClassifyInFlight.delete(cacheKey);
+      });
   }
 
   private normalizeDays(days?: number) {

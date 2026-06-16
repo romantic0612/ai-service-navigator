@@ -150,6 +150,7 @@ export type MonitorUnmetNeeds = {
   days: number;
   total: number;
   modelEnabled: boolean;
+  classificationStatus: 'local' | 'pending' | 'ready';
   generatedAt: string;
   items: MonitorUnmetNeedItem[];
 };
