@@ -1745,6 +1745,10 @@ button {
   stroke: #126f68;
 }
 
+.monitor-axis-chart__line--monthly {
+  stroke: #f59e0b;
+}
+
 .monitor-axis-chart__x {
   display: flex;
   justify-content: space-between;
@@ -1756,6 +1760,10 @@ button {
   color: #71828a;
   font-size: 10px;
   font-weight: 800;
+}
+
+.monitor-axis-chart__x--monthly span {
+  font-size: 9px;
 }
 
 .monitor-chart-summary {

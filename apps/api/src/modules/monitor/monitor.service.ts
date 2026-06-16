@@ -70,6 +70,7 @@ export class MonitorService {
       hourlyActivity,
       topQuestions,
       visitorSummary,
+      visitorMonthlyTrend,
       studentTopQuestions,
       teacherTopQuestions,
       recentAssistantTurns,
@@ -83,6 +84,7 @@ export class MonitorService {
       this.getHourlyActivity({ days }),
       this.getTopQuestions({ days, limit: 12 }),
       this.getVisitorSummary(),
+      this.getVisitorMonthlyTrend(),
       this.getTopQuestionsByRoles({ days, limit: 10 }, ['本科生', '研究生']),
       this.getTopQuestionsByRoles({ days, limit: 10 }, ['教职工']),
       this.getRecentAssistantTurns(30),
@@ -99,6 +101,7 @@ export class MonitorService {
       hourlyActivity,
       topQuestions,
       visitorSummary,
+      visitorMonthlyTrend,
       studentTopQuestions,
       teacherTopQuestions,
       recentAssistantTurns,
@@ -458,6 +461,33 @@ export class MonitorService {
       totalVisitors: Number(totalRows[0]?.totalVisitors ?? 0),
       todayActiveVisitors: Number(todayRows[0]?.todayActiveVisitors ?? 0),
     };
+  }
+
+  async getVisitorMonthlyTrend() {
+    const rows = await this.prisma.$queryRaw<Array<{ monthIndex: number; visitors: bigint }>>(Prisma.sql`
+      SELECT
+        MONTH(e.created_at) AS monthIndex,
+        COUNT(DISTINCT e.user_id) AS visitors
+      FROM user_events e
+      WHERE YEAR(e.created_at) = YEAR(CURDATE())
+        AND e.event_type IN ('ask', 'open_service', 'no_result')
+      GROUP BY monthIndex
+      ORDER BY monthIndex ASC
+    `);
+
+    const buckets = Array.from({ length: 12 }, (_, index) => ({
+      month: `${index + 1}月`,
+      visitors: 0,
+    }));
+
+    for (const row of rows) {
+      const bucket = buckets[row.monthIndex - 1];
+      if (bucket) {
+        bucket.visitors = Number(row.visitors);
+      }
+    }
+
+    return buckets;
   }
 
   async getRecentAssistantTurns(limit = 30) {

@@ -112,6 +112,7 @@ export type MonitorOverview = {
   hourlyActivity: MonitorHourlyActivityItem[];
   topQuestions: MonitorTopQuestionItem[];
   visitorSummary: MonitorVisitorSummary;
+  visitorMonthlyTrend: MonitorMonthlyVisitorItem[];
   studentTopQuestions: MonitorTopQuestionItem[];
   teacherTopQuestions: MonitorTopQuestionItem[];
   unmetNeeds: MonitorUnmetNeeds;
@@ -161,6 +162,11 @@ export type MonitorUnmetNeeds = {
 export type MonitorVisitorSummary = {
   totalVisitors: number;
   todayActiveVisitors: number;
+};
+
+export type MonitorMonthlyVisitorItem = {
+  month: string;
+  visitors: number;
 };
 
 export type MonitorTrendItem = {
