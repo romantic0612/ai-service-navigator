@@ -19,15 +19,21 @@ import {
 import { computed, nextTick, ref } from 'vue';
 import ServiceCard from './components/ServiceCard.vue';
 import {
+  archiveMonitorUnmetNeed,
   getAssistantOpening,
   getMonitorOverview,
   getMonitorSession,
+  getUserNotifications,
   loginMonitor,
+  markUserNotificationRead,
   getProfileSummary,
+  resolveMonitorUnmetNeed,
   saveProfileMemory,
   sendAssistantMessage,
+  updateMonitorUnmetNeedPriority,
   type AssistantReply,
   type MonitorOverview,
+  type MonitorUnmetNeedItem,
   type ProfileSummary,
   type ProfileUpdateCandidate,
   type MonitorLoginResult,
@@ -62,6 +68,9 @@ const displayName = computed(() => profile.value?.name || '我的');
 const monitor = ref<MonitorOverview | null>(null);
 const monitorDays = ref(30);
 const monitorRequireLogin = ref(false);
+const expandedUnmetCategory = ref<string | null>(null);
+const monitorBusyNeedKey = ref('');
+const monitorPriorityOptions: Array<'high' | 'medium' | 'low'> = ['high', 'medium', 'low'];
 const monitorTotalClicks = computed(() => monitor.value?.topServices.reduce((sum, item) => sum + item.clicks, 0) ?? 0);
 const monitorNoResultTotal = computed(
   () => monitor.value?.noResultQuestions.reduce((sum, item) => sum + item.count, 0) ?? 0,
@@ -126,6 +135,7 @@ const monitorUnmetNeedSummary = computed(() => {
       intents: string[];
       actions: Map<string, number>;
       priority: 'high' | 'medium' | 'low';
+      items: MonitorUnmetNeedItem[];
     }
   >();
   const priorityRank = { high: 3, medium: 2, low: 1 };
@@ -138,6 +148,7 @@ const monitorUnmetNeedSummary = computed(() => {
       intents: [],
       actions: new Map<string, number>(),
       priority: 'low' as const,
+      items: [],
     };
     bucket.count += item.count;
     bucket.users += item.users;
@@ -148,6 +159,7 @@ const monitorUnmetNeedSummary = computed(() => {
     if (priorityRank[item.priority] > priorityRank[bucket.priority]) {
       bucket.priority = item.priority;
     }
+    bucket.items.push(item);
     buckets.set(item.suggestedCategory, bucket);
   }
 
@@ -161,7 +173,15 @@ const monitorUnmetNeedSummary = computed(() => {
       intents: bucket.intents.slice(0, 3),
       action: [...bucket.actions.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? '补充事项库',
       priority: bucket.priority,
+      items: bucket.items.sort((left, right) => right.count - left.count),
     }));
+});
+const monitorExpandedUnmetItems = computed(() => {
+  if (!expandedUnmetCategory.value) {
+    return [];
+  }
+
+  return (monitor.value?.unmetNeeds.items ?? []).filter((item) => item.suggestedCategory === expandedUnmetCategory.value);
 });
 
 const quickPrompts = computed(() => {
@@ -184,7 +204,7 @@ if (isMonitorPage.value) {
       profile.value = summary;
       return getAssistantOpening(currentUserId.value);
     })
-    .then((opening) => {
+    .then(async (opening) => {
       messages.value.push({
         id: nextId.value++,
         role: 'assistant',
@@ -195,6 +215,7 @@ if (isMonitorPage.value) {
           guideSuggestions: opening.quickActions,
         },
       });
+      await appendUnreadNotifications(currentUserId.value);
       scrollToLatestMessage('auto');
     })
     .catch(() => {
@@ -271,6 +292,12 @@ async function initMonitorPage() {
 async function loadMonitorData() {
   monitorError.value = '';
   monitor.value = await getMonitorOverview(monitorDays.value);
+  if (
+    expandedUnmetCategory.value &&
+    !monitor.value.unmetNeeds.items.some((item) => item.suggestedCategory === expandedUnmetCategory.value)
+  ) {
+    expandedUnmetCategory.value = null;
+  }
 }
 
 async function parseLoginResult(result: MonitorLoginResult) {
@@ -309,6 +336,80 @@ async function handleMonitorLogin() {
     monitorLoginError.value = err instanceof Error ? err.message : '登录失败，请检查网络或配置';
   } finally {
     monitorLoginLoading.value = false;
+  }
+}
+
+async function appendUnreadNotifications(userId: string) {
+  if (!userId) {
+    return;
+  }
+
+  try {
+    const notifications = await getUserNotifications(userId);
+    for (const notification of notifications.slice(0, 3)) {
+      const content = `${notification.title}\n${notification.content}`;
+      messages.value.push({
+        id: nextId.value++,
+        role: 'assistant',
+        content,
+        reply: {
+          action: 'guide',
+          message: content,
+        },
+      });
+      await markUserNotificationRead(userId, notification.id);
+    }
+  } catch {
+    // Notifications are an enhancement; chat should still open if the table is unavailable.
+  }
+}
+
+function toggleUnmetCategory(category: string) {
+  expandedUnmetCategory.value = expandedUnmetCategory.value === category ? null : category;
+}
+
+async function setUnmetPriority(item: MonitorUnmetNeedItem, priority: 'high' | 'medium' | 'low') {
+  monitorBusyNeedKey.value = item.key;
+  try {
+    await updateMonitorUnmetNeedPriority(item.key, priority);
+    await loadMonitorData();
+    expandedUnmetCategory.value = item.suggestedCategory;
+  } finally {
+    monitorBusyNeedKey.value = '';
+  }
+}
+
+async function resolveUnmetItem(item: MonitorUnmetNeedItem) {
+  const defaultMessage = `你上次问的“${item.suggestedIntent}”已经落实了，现在可以回到 AI 办事继续查询或办理。`;
+  const message = window.prompt('给当初问过这个问题的用户发送什么提醒？', defaultMessage);
+  if (message === null) {
+    return;
+  }
+
+  monitorBusyNeedKey.value = item.key;
+  try {
+    await resolveMonitorUnmetNeed(item.key, {
+      resolvedTitle: item.suggestedIntent,
+      message,
+    });
+    await loadMonitorData();
+  } finally {
+    monitorBusyNeedKey.value = '';
+  }
+}
+
+async function archiveUnmetItem(item: MonitorUnmetNeedItem) {
+  const confirmed = window.confirm(`确认隐藏“${item.suggestedIntent}”吗？隐藏后不会通知用户。`);
+  if (!confirmed) {
+    return;
+  }
+
+  monitorBusyNeedKey.value = item.key;
+  try {
+    await archiveMonitorUnmetNeed(item.key);
+    await loadMonitorData();
+  } finally {
+    monitorBusyNeedKey.value = '';
   }
 }
 
@@ -752,11 +853,19 @@ function defaultWelcomeMessages(): ChatMessage[] {
           </div>
 
           <div v-if="monitorUnmetNeedSummary.length" class="monitor-unmet-list monitor-unmet-list--summary">
-            <article v-for="item in monitorUnmetNeedSummary" :key="item.category">
+            <article
+              v-for="item in monitorUnmetNeedSummary"
+              :key="item.category"
+              :class="{ 'is-active': expandedUnmetCategory === item.category }"
+              role="button"
+              tabindex="0"
+              @click="toggleUnmetCategory(item.category)"
+              @keydown.enter="toggleUnmetCategory(item.category)"
+            >
               <header>
                 <div>
                   <strong>{{ item.category }}</strong>
-                  <span>{{ item.users }} 人 / {{ item.count }} 次 · 代表问题：{{ item.intents.join('、') }}</span>
+                  <span>{{ item.users }} 人 / {{ item.count }} 次 · {{ item.items.length }} 个待处理小项</span>
                 </div>
                 <b :class="`monitor-priority monitor-priority--${item.priority}`">{{ monitorPriorityText(item.priority) }}</b>
               </header>
@@ -764,6 +873,49 @@ function defaultWelcomeMessages(): ChatMessage[] {
               <div class="monitor-unmet-tags">
                 <span>{{ item.action }}</span>
                 <span v-for="intent in item.intents" :key="`${item.category}-${intent}`">{{ intent }}</span>
+              </div>
+            </article>
+          </div>
+
+          <div v-if="monitorExpandedUnmetItems.length" class="monitor-unmet-detail-panel">
+            <div class="monitor-unmet-detail-panel__head">
+              <div>
+                <span>Manual Review</span>
+                <h3>{{ expandedUnmetCategory }}待处理小项</h3>
+              </div>
+              <small>点“已落实并通知”后，会给问过该需求的用户生成站内提醒，并从待处理池隐藏。</small>
+            </div>
+            <article v-for="item in monitorExpandedUnmetItems" :key="item.key" class="monitor-unmet-work-item">
+              <header>
+                <div>
+                  <strong>{{ item.suggestedIntent }}</strong>
+                  <span>{{ item.users }} 人 / {{ item.count }} 次 · 最近 {{ item.lastAt }}</span>
+                </div>
+                <b :class="`monitor-priority monitor-priority--${item.priority}`">{{ monitorPriorityText(item.priority) }}</b>
+              </header>
+              <p>{{ item.reason }}</p>
+              <div class="monitor-unmet-samples">
+                <small v-for="sample in item.samples" :key="`${item.key}-${sample.userId}-${sample.createdAt}`">
+                  {{ sample.userName }}（{{ sample.userRole }}）：{{ sample.queryText }}
+                </small>
+              </div>
+              <div class="monitor-unmet-actions">
+                <button
+                  v-for="priority in monitorPriorityOptions"
+                  :key="`${item.key}-${priority}`"
+                  type="button"
+                  :class="{ 'is-selected': item.priority === priority }"
+                  :disabled="monitorBusyNeedKey === item.key"
+                  @click.stop="setUnmetPriority(item, priority)"
+                >
+                  {{ monitorPriorityText(priority) }}
+                </button>
+                <button type="button" :disabled="monitorBusyNeedKey === item.key" @click.stop="resolveUnmetItem(item)">
+                  已落实并通知
+                </button>
+                <button type="button" :disabled="monitorBusyNeedKey === item.key" @click.stop="archiveUnmetItem(item)">
+                  隐藏
+                </button>
               </div>
             </article>
           </div>

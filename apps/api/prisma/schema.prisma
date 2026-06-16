@@ -51,6 +51,7 @@ model UserProfile {
   memories   UserMemory[]
   events     UserEvent[]
   assistantTurns AssistantTurn[]
+  notifications UserNotification[]
 
   @@map("user_profiles")
 }
@@ -180,6 +181,43 @@ model AssistantTurn {
   @@index([userId, createdAt])
   @@index([action, createdAt])
   @@map("assistant_turns")
+}
+
+model UnmetNeedReview {
+  needKey           String    @id @map("need_key")
+  manualPriority    String?   @map("manual_priority")
+  status            String    @default("OPEN")
+  adminNote         String?   @db.Text @map("admin_note")
+  resolvedTitle     String?   @map("resolved_title")
+  resolvedMessage   String?   @db.Text @map("resolved_message")
+  resolvedServiceId String?   @map("resolved_service_id")
+  resolvedBy        String?   @map("resolved_by")
+  resolvedAt        DateTime? @map("resolved_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([manualPriority])
+  @@map("unmet_need_reviews")
+}
+
+model UserNotification {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  needKey       String?   @map("need_key")
+  serviceItemId String?   @map("service_item_id")
+  title         String
+  content       String    @db.Text
+  status        String    @default("UNREAD")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  readAt        DateTime? @map("read_at")
+
+  user UserProfile @relation(fields: [userId], references: [userId])
+
+  @@unique([userId, needKey])
+  @@index([userId, status, createdAt])
+  @@index([needKey])
+  @@map("user_notifications")
 }
 
 model RecommendRule {

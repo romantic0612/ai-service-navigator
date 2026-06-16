@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { MonitorAuthGuard } from './monitor-auth.guard';
 import { MonitorService } from './monitor.service';
 
@@ -96,5 +96,29 @@ export class MonitorController {
       days: Number.parseInt(days, 10),
       limit: Number.parseInt(limit, 10),
     });
+  }
+
+  @UseGuards(MonitorAuthGuard)
+  @Post('unmet-needs/:needKey/priority')
+  updateUnmetNeedPriority(
+    @Param('needKey') needKey: string,
+    @Body() body: { priority?: string; note?: string },
+  ) {
+    return this.monitorService.updateUnmetNeedPriority(needKey, body);
+  }
+
+  @UseGuards(MonitorAuthGuard)
+  @Post('unmet-needs/:needKey/resolve')
+  resolveUnmetNeed(
+    @Param('needKey') needKey: string,
+    @Body() body: { resolvedTitle?: string; message?: string; serviceItemId?: string; resolvedBy?: string },
+  ) {
+    return this.monitorService.resolveUnmetNeed(needKey, body);
+  }
+
+  @UseGuards(MonitorAuthGuard)
+  @Post('unmet-needs/:needKey/archive')
+  archiveUnmetNeed(@Param('needKey') needKey: string) {
+    return this.monitorService.archiveUnmetNeed(needKey);
   }
 }

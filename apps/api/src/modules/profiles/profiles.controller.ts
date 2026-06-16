@@ -27,4 +27,14 @@ export class ProfilesController {
   recordEvent(@Param('userId') userId: string, @Body() dto: RecordEventDto) {
     return this.profilesService.recordUserEvent(userId, dto);
   }
+
+  @Get(':userId/notifications')
+  getNotifications(@Param('userId') userId: string) {
+    return this.profilesService.getUnreadNotifications(userId);
+  }
+
+  @Post(':userId/notifications/:notificationId/read')
+  markNotificationRead(@Param('userId') userId: string, @Param('notificationId') notificationId: string) {
+    return this.profilesService.markNotificationRead(userId, notificationId);
+  }
 }

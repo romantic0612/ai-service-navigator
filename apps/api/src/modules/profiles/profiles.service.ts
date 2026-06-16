@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { databaseNow } from '../../common/time';
 import { PrismaService } from '../prisma/prisma.service';
 import { OAuthProfileDto } from './oauth-profile.dto';
@@ -251,6 +252,64 @@ export class ProfilesService {
       return { recorded: true };
     } catch {
       return { recorded: false, reason: 'database_unavailable_or_table_missing' };
+    }
+  }
+
+  async getUnreadNotifications(userId: string) {
+    try {
+      await this.ensureUserProfile(userId);
+      const rows = await this.prisma.$queryRaw<
+        Array<{
+          id: string;
+          needKey: string | null;
+          serviceItemId: string | null;
+          title: string;
+          content: string;
+          status: string;
+          createdAt: Date;
+        }>
+      >(Prisma.sql`
+        SELECT
+          id,
+          need_key AS needKey,
+          service_item_id AS serviceItemId,
+          title,
+          content,
+          status,
+          created_at AS createdAt
+        FROM user_notifications
+        WHERE user_id = ${userId}
+          AND status = 'UNREAD'
+        ORDER BY created_at DESC
+        LIMIT 5
+      `);
+
+      return rows.map((row) => ({
+        id: row.id,
+        needKey: row.needKey,
+        serviceItemId: row.serviceItemId,
+        title: row.title,
+        content: row.content,
+        status: row.status,
+        createdAt: row.createdAt,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  async markNotificationRead(userId: string, notificationId: string) {
+    try {
+      await this.prisma.$executeRaw(Prisma.sql`
+        UPDATE user_notifications
+        SET status = 'READ',
+            read_at = ${databaseNow()}
+        WHERE id = ${notificationId}
+          AND user_id = ${userId}
+      `);
+      return { updated: true };
+    } catch {
+      return { updated: false, reason: 'database_unavailable_or_table_missing' };
     }
   }
 

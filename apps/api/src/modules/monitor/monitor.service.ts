@@ -1,5 +1,6 @@
 ﻿import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { databaseNow } from '../../common/time';
 import { MiniMaxService } from '../ai-memory/minimax.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -28,6 +29,16 @@ type UnmetNeedsResult = {
   classificationStatus: 'local' | 'pending' | 'ready';
   items: Array<Record<string, unknown>>;
   generatedAt: string;
+};
+
+type UnmetNeedReviewRow = {
+  needKey: string;
+  manualPriority: 'high' | 'medium' | 'low' | null;
+  status: 'OPEN' | 'RESOLVED' | 'ARCHIVED';
+  adminNote: string | null;
+  resolvedTitle: string | null;
+  resolvedMessage: string | null;
+  resolvedAt: Date | null;
 };
 
 @Injectable()
@@ -543,7 +554,8 @@ export class MonitorService {
     `);
 
     const grouped = this.groupUnmetNeedRows(rows, limit);
-    const result = this.buildUnmetNeedsResult(days, rows.length, grouped, [], 'pending');
+    const reviewMap = await this.getUnmetNeedReviews(grouped.map((group) => group.key));
+    const result = this.buildUnmetNeedsResult(days, rows.length, grouped, [], 'pending', reviewMap);
     this.unmetNeedsCache = {
       key: cacheKey,
       expiresAt: Date.now() + 2 * 60 * 1000,
@@ -555,26 +567,127 @@ export class MonitorService {
     return result;
   }
 
+  async updateUnmetNeedPriority(
+    needKey: string,
+    dto: { priority?: string; note?: string },
+  ): Promise<{ updated: boolean; needKey: string }> {
+    const priority = this.toPriority(dto.priority);
+    if (!priority) {
+      return { updated: false, needKey };
+    }
+
+    const now = databaseNow();
+    await this.prisma.$executeRaw(Prisma.sql`
+      INSERT INTO unmet_need_reviews
+        (need_key, manual_priority, status, admin_note, created_at, updated_at)
+      VALUES
+        (${needKey}, ${priority}, 'OPEN', ${dto.note ?? null}, ${now}, ${now})
+      ON DUPLICATE KEY UPDATE
+        manual_priority = VALUES(manual_priority),
+        admin_note = VALUES(admin_note),
+        updated_at = VALUES(updated_at)
+    `);
+
+    this.clearUnmetNeedsCache();
+    return { updated: true, needKey };
+  }
+
+  async resolveUnmetNeed(
+    needKey: string,
+    dto: { resolvedTitle?: string; message?: string; serviceItemId?: string; resolvedBy?: string },
+  ): Promise<{ resolved: boolean; needKey: string; notifiedUsers: number }> {
+    const rows = await this.getUnmetNeedCandidateRows(365, 1000);
+    const matchedRows = rows.filter((row) => this.normalizeNeedKey(row.queryText) === needKey);
+    const userIds = [...new Set(matchedRows.map((row) => row.userId).filter(Boolean))];
+    const sampleText = matchedRows[0]?.queryText ?? needKey;
+    const title = dto.resolvedTitle?.trim() || sampleText;
+    const content =
+      dto.message?.trim() ||
+      `你上次问的“${title}”已经落实了，现在可以回到 AI 办事继续查询或办理。`;
+    const now = databaseNow();
+
+    await this.prisma.$executeRaw(Prisma.sql`
+      INSERT INTO unmet_need_reviews
+        (need_key, status, resolved_title, resolved_message, resolved_service_id, resolved_by, resolved_at, created_at, updated_at)
+      VALUES
+        (${needKey}, 'RESOLVED', ${title}, ${content}, ${dto.serviceItemId ?? null}, ${dto.resolvedBy ?? null}, ${now}, ${now}, ${now})
+      ON DUPLICATE KEY UPDATE
+        status = 'RESOLVED',
+        resolved_title = VALUES(resolved_title),
+        resolved_message = VALUES(resolved_message),
+        resolved_service_id = VALUES(resolved_service_id),
+        resolved_by = VALUES(resolved_by),
+        resolved_at = VALUES(resolved_at),
+        updated_at = VALUES(updated_at)
+    `);
+
+    for (const userId of userIds) {
+      await this.prisma.$executeRaw(Prisma.sql`
+        INSERT INTO user_notifications
+          (id, user_id, need_key, service_item_id, title, content, status, created_at)
+        VALUES
+          (${this.createNotificationId(userId, needKey)}, ${userId}, ${needKey}, ${dto.serviceItemId ?? null}, ${`你问过的“${title}”已落实`}, ${content}, 'UNREAD', ${now})
+        ON DUPLICATE KEY UPDATE
+          service_item_id = VALUES(service_item_id),
+          title = VALUES(title),
+          content = VALUES(content),
+          status = 'UNREAD',
+          created_at = VALUES(created_at),
+          read_at = NULL
+      `);
+    }
+
+    this.clearUnmetNeedsCache();
+    return { resolved: true, needKey, notifiedUsers: userIds.length };
+  }
+
+  async archiveUnmetNeed(needKey: string): Promise<{ archived: boolean; needKey: string }> {
+    const now = databaseNow();
+    await this.prisma.$executeRaw(Prisma.sql`
+      INSERT INTO unmet_need_reviews
+        (need_key, status, created_at, updated_at)
+      VALUES
+        (${needKey}, 'ARCHIVED', ${now}, ${now})
+      ON DUPLICATE KEY UPDATE
+        status = 'ARCHIVED',
+        updated_at = VALUES(updated_at)
+    `);
+
+    this.clearUnmetNeedsCache();
+    return { archived: true, needKey };
+  }
+
   private buildUnmetNeedsResult(
     days: number,
     total: number,
     grouped: ReturnType<MonitorService['groupUnmetNeedRows']>,
     modelGroups: UnmetNeedModelGroup[],
     fallbackStatus: 'local' | 'pending' | 'ready',
+    reviewMap = new Map<string, UnmetNeedReviewRow>(),
   ): UnmetNeedsResult {
     const modelByKey = new Map(modelGroups.map((group) => [group.key, group]));
-    const items = grouped.map((group) => {
-      const model = modelByKey.get(group.key);
-      return {
-        ...group,
-        suggestedIntent: model?.suggestedIntent ?? group.queryText,
-        suggestedCategory: model?.suggestedCategory ?? this.fallbackCategory(group.queryText),
-        priority: model?.priority ?? this.fallbackPriority(group.count, group.users),
-        reason: model?.reason ?? this.fallbackUnmetReason(group.action),
-        suggestedKeywords: model?.suggestedKeywords ?? this.extractKeywords(group.queryText),
-        suggestedAction: model?.status ?? this.fallbackUnmetStatus(group.action),
-      };
-    });
+    const items = grouped
+      .map((group) => {
+        const model = modelByKey.get(group.key);
+        const review = reviewMap.get(group.key);
+        if (review?.status === 'RESOLVED' || review?.status === 'ARCHIVED') {
+          return null;
+        }
+
+        return {
+          ...group,
+          suggestedIntent: model?.suggestedIntent ?? group.queryText,
+          suggestedCategory: model?.suggestedCategory ?? this.fallbackCategory(group.queryText),
+          priority: review?.manualPriority ?? model?.priority ?? this.fallbackPriority(group.count, group.users),
+          reviewStatus: review?.status ?? 'OPEN',
+          manualPriority: review?.manualPriority,
+          adminNote: review?.adminNote,
+          reason: model?.reason ?? this.fallbackUnmetReason(group.action),
+          suggestedKeywords: model?.suggestedKeywords ?? this.extractKeywords(group.queryText),
+          suggestedAction: model?.status ?? this.fallbackUnmetStatus(group.action),
+        };
+      })
+      .filter(Boolean) as Array<Record<string, unknown>>;
 
     const classificationStatus =
       modelGroups.length > 0 ? 'ready' : this.miniMaxService.isEnabled() ? fallbackStatus : 'local';
@@ -601,14 +714,15 @@ export class MonitorService {
 
     this.unmetNeedsClassifyInFlight.add(cacheKey);
     void this.classifyUnmetNeeds(grouped)
-      .then((modelGroups) => {
+      .then(async (modelGroups) => {
         if (modelGroups.length === 0) {
           return;
         }
+        const reviewMap = await this.getUnmetNeedReviews(grouped.map((group) => group.key));
         this.unmetNeedsCache = {
           key: cacheKey,
           expiresAt: Date.now() + 10 * 60 * 1000,
-          value: this.buildUnmetNeedsResult(days, total, grouped, modelGroups, 'ready'),
+          value: this.buildUnmetNeedsResult(days, total, grouped, modelGroups, 'ready', reviewMap),
         };
       })
       .finally(() => {
@@ -735,6 +849,65 @@ export class MonitorService {
         lastAt: this.formatDisplayTime(group.lastAt),
         samples: group.samples,
       }));
+  }
+
+  private async getUnmetNeedReviews(keys: string[]) {
+    if (keys.length === 0) {
+      return new Map<string, UnmetNeedReviewRow>();
+    }
+
+    try {
+      const rows = await this.prisma.$queryRaw<UnmetNeedReviewRow[]>(Prisma.sql`
+        SELECT
+          need_key AS needKey,
+          manual_priority AS manualPriority,
+          status,
+          admin_note AS adminNote,
+          resolved_title AS resolvedTitle,
+          resolved_message AS resolvedMessage,
+          resolved_at AS resolvedAt
+        FROM unmet_need_reviews
+        WHERE need_key IN (${Prisma.join(keys)})
+      `);
+
+      return new Map(rows.map((row) => [row.needKey, row]));
+    } catch {
+      return new Map<string, UnmetNeedReviewRow>();
+    }
+  }
+
+  private async getUnmetNeedCandidateRows(days: number, limit: number) {
+    const from = this.dateFrom(days);
+    return this.prisma.$queryRaw<
+      Array<{
+        queryText: string;
+        responseText: string;
+        action: string;
+        userId: string;
+        userName: string | null;
+        userRole: string | null;
+        college: string | null;
+        createdAt: Date;
+      }>
+    >(Prisma.sql`
+      SELECT
+        t.query_text AS queryText,
+        t.response_text AS responseText,
+        t.action,
+        t.user_id AS userId,
+        p.name AS userName,
+        p.role AS userRole,
+        p.college AS college,
+        t.created_at AS createdAt
+      FROM assistant_turns t
+      LEFT JOIN user_profiles p ON p.user_id = t.user_id
+      WHERE t.created_at >= ${from}
+        AND t.action IN ('no_reliable_result', 'role_mismatch')
+        AND t.query_text IS NOT NULL
+        AND t.query_text <> ''
+      ORDER BY t.created_at DESC
+      LIMIT ${Math.min(this.maxLimit * 10, Math.max(limit, 100))}
+    `);
   }
 
   private async classifyUnmetNeeds(
@@ -908,6 +1081,14 @@ export class MonitorService {
     }
 
     return undefined;
+  }
+
+  private clearUnmetNeedsCache() {
+    this.unmetNeedsCache = undefined;
+  }
+
+  private createNotificationId(userId: string, needKey: string) {
+    return `notice_${Buffer.from(`${userId}:${needKey}`).toString('base64url').slice(0, 64)}`;
   }
 
   private dateFrom(days: number) {

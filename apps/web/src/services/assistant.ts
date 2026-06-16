@@ -135,6 +135,9 @@ export type MonitorUnmetNeedItem = {
   reason: string;
   suggestedKeywords: string[];
   suggestedAction: string;
+  reviewStatus?: 'OPEN' | 'RESOLVED' | 'ARCHIVED';
+  manualPriority?: 'high' | 'medium' | 'low' | null;
+  adminNote?: string | null;
   samples: Array<{
     queryText: string;
     responseText: string;
@@ -196,6 +199,16 @@ export type MonitorLoginResult = {
   userId?: string;
   expireAt?: string;
   message?: string;
+};
+
+export type UserNotification = {
+  id: string;
+  needKey?: string | null;
+  serviceItemId?: string | null;
+  title: string;
+  content: string;
+  status: string;
+  createdAt: string;
 };
 
 export type AssistantOpening = {
@@ -270,6 +283,20 @@ async function getMonitorWithFallback<T>(path: string, params?: Record<string, s
   }
 }
 
+async function postMonitorWithFallback<T>(path: string, body?: Record<string, unknown>) {
+  try {
+    const primaryResponse = await axios.post<unknown>(`${apiMonitorBase}${path}`, body ?? {}, { withCredentials: true });
+    const primaryData = primaryResponse.data;
+    if (typeof primaryData === 'object' && primaryData !== null) {
+      return primaryData as T;
+    }
+    throw new Error('monitor api fallback to html');
+  } catch {
+    const fallbackResponse = await axios.post<T>(`${apiMonitorFallbackBase}${path}`, body ?? {}, { withCredentials: true });
+    return fallbackResponse.data;
+  }
+}
+
 export async function getMonitorSession(): Promise<MonitorAuthStatus> {
   const response = await axios.get<MonitorAuthStatus>(`${apiMonitorFallbackBase}/session`, { withCredentials: true });
   return response.data;
@@ -313,6 +340,45 @@ export async function getMonitorSecondaryAuthIssues(
   limit = 50,
 ): Promise<MonitorAuthIssue> {
   return getMonitorWithFallback<MonitorAuthIssue>('/secondary-auth-issues', { days, limit });
+}
+
+export async function updateMonitorUnmetNeedPriority(
+  needKey: string,
+  priority: 'high' | 'medium' | 'low',
+  note?: string,
+) {
+  return postMonitorWithFallback<{ updated: boolean; needKey: string }>(
+    `/unmet-needs/${encodeURIComponent(needKey)}/priority`,
+    { priority, note },
+  );
+}
+
+export async function resolveMonitorUnmetNeed(
+  needKey: string,
+  body: { resolvedTitle?: string; message?: string; serviceItemId?: string; resolvedBy?: string },
+) {
+  return postMonitorWithFallback<{ resolved: boolean; needKey: string; notifiedUsers: number }>(
+    `/unmet-needs/${encodeURIComponent(needKey)}/resolve`,
+    body,
+  );
+}
+
+export async function archiveMonitorUnmetNeed(needKey: string) {
+  return postMonitorWithFallback<{ archived: boolean; needKey: string }>(
+    `/unmet-needs/${encodeURIComponent(needKey)}/archive`,
+  );
+}
+
+export async function getUserNotifications(userId: string) {
+  const response = await axios.get<UserNotification[]>(`${apiBaseUrl}/profiles/${userId}/notifications`);
+  return response.data;
+}
+
+export async function markUserNotificationRead(userId: string, notificationId: string) {
+  const response = await axios.post<{ updated: boolean }>(
+    `${apiBaseUrl}/profiles/${userId}/notifications/${notificationId}/read`,
+  );
+  return response.data;
 }
 
 export async function recordUserEvent(
