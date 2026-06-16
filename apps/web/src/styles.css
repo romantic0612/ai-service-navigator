@@ -1539,7 +1539,7 @@ button {
 
 .monitor-unmet-detail-panel {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 8px;
   width: min(100%, 640px);
   max-height: min(78dvh, 620px);
@@ -1595,6 +1595,17 @@ button {
   border-radius: 10px;
   background: rgba(15, 118, 110, 0.1);
   color: #0f766e;
+}
+
+.monitor-unmet-action-message {
+  margin: 0;
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .monitor-unmet-work-list {

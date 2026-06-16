@@ -70,6 +70,7 @@ const monitorDays = ref(30);
 const monitorRequireLogin = ref(false);
 const expandedUnmetCategory = ref<string | null>(null);
 const monitorBusyNeedKey = ref('');
+const monitorActionMessage = ref('');
 const monitorPriorityOptions: Array<'high' | 'medium' | 'low'> = ['high', 'medium', 'low'];
 const monitorTotalClicks = computed(() => monitor.value?.topServices.reduce((sum, item) => sum + item.clicks, 0) ?? 0);
 const monitorNoResultTotal = computed(
@@ -370,14 +371,19 @@ async function appendUnreadNotifications(userId: string) {
 
 function toggleUnmetCategory(category: string) {
   expandedUnmetCategory.value = expandedUnmetCategory.value === category ? null : category;
+  monitorActionMessage.value = '';
 }
 
 async function setUnmetPriority(item: MonitorUnmetNeedItem, priority: 'high' | 'medium' | 'low') {
   monitorBusyNeedKey.value = item.key;
+  monitorActionMessage.value = '';
   try {
     await updateMonitorUnmetNeedPriority(item.key, priority);
     await loadMonitorData();
     expandedUnmetCategory.value = item.suggestedCategory;
+    monitorActionMessage.value = `已把“${item.suggestedIntent}”标记为${monitorPriorityText(priority)}`;
+  } catch {
+    monitorActionMessage.value = '优先级更新失败，请重新登录后台后再试';
   } finally {
     monitorBusyNeedKey.value = '';
   }
@@ -385,33 +391,32 @@ async function setUnmetPriority(item: MonitorUnmetNeedItem, priority: 'high' | '
 
 async function resolveUnmetItem(item: MonitorUnmetNeedItem) {
   const defaultMessage = `你上次问的“${item.suggestedIntent}”已经落实了，现在可以回到 AI 办事继续查询或办理。`;
-  const message = window.prompt('给当初问过这个问题的用户发送什么提醒？', defaultMessage);
-  if (message === null) {
-    return;
-  }
 
   monitorBusyNeedKey.value = item.key;
+  monitorActionMessage.value = '';
   try {
     await resolveMonitorUnmetNeed(item.key, {
       resolvedTitle: item.suggestedIntent,
-      message,
+      message: defaultMessage,
     });
     await loadMonitorData();
+    monitorActionMessage.value = `已落实“${item.suggestedIntent}”，并给相关用户生成提醒`;
+  } catch {
+    monitorActionMessage.value = '落实失败，请重新登录后台后再试';
   } finally {
     monitorBusyNeedKey.value = '';
   }
 }
 
 async function archiveUnmetItem(item: MonitorUnmetNeedItem) {
-  const confirmed = window.confirm(`确认隐藏“${item.suggestedIntent}”吗？隐藏后不会通知用户。`);
-  if (!confirmed) {
-    return;
-  }
-
   monitorBusyNeedKey.value = item.key;
+  monitorActionMessage.value = '';
   try {
     await archiveMonitorUnmetNeed(item.key);
     await loadMonitorData();
+    monitorActionMessage.value = `已隐藏“${item.suggestedIntent}”`;
+  } catch {
+    monitorActionMessage.value = '隐藏失败，请重新登录后台后再试';
   } finally {
     monitorBusyNeedKey.value = '';
   }
@@ -891,6 +896,7 @@ function defaultWelcomeMessages(): ChatMessage[] {
                   <X :size="18" />
                 </button>
               </div>
+              <p v-if="monitorActionMessage" class="monitor-unmet-action-message">{{ monitorActionMessage }}</p>
               <div class="monitor-unmet-work-list">
                 <article v-for="item in monitorExpandedUnmetItems" :key="item.key" class="monitor-unmet-work-item">
                   <header>
@@ -914,7 +920,7 @@ function defaultWelcomeMessages(): ChatMessage[] {
                       {{ monitorPriorityText(priority) }}
                     </button>
                     <button type="button" :disabled="monitorBusyNeedKey === item.key" @click.stop="resolveUnmetItem(item)">
-                      已落实并通知
+                      {{ monitorBusyNeedKey === item.key ? '处理中' : '已落实并通知' }}
                     </button>
                     <button type="button" :disabled="monitorBusyNeedKey === item.key" @click.stop="archiveUnmetItem(item)">
                       隐藏
