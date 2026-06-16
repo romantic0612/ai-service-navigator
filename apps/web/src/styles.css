@@ -1524,30 +1524,21 @@ button {
   line-height: 1.55;
 }
 
-.monitor-unmet-drawer-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0 10px max(10px, env(safe-area-inset-bottom));
-  background: rgba(8, 25, 35, 0.28);
-  backdrop-filter: blur(8px);
-  overscroll-behavior: contain;
+.monitor-unmet-inline-panel {
+  scroll-margin-block: 18px;
 }
 
 .monitor-unmet-detail-panel {
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 8px;
-  width: min(100%, 640px);
-  max-height: min(78dvh, 620px);
+  width: 100%;
+  max-height: min(58dvh, 460px);
   padding: 8px 10px 10px;
   border: 1px solid rgba(15, 118, 110, 0.18);
-  border-radius: 22px 22px 14px 14px;
+  border-radius: 18px;
   background: linear-gradient(180deg, rgba(240, 252, 250, 0.95), rgba(255, 255, 255, 0.88));
-  box-shadow: 0 -20px 60px rgba(8, 25, 35, 0.18);
+  box-shadow: 0 16px 40px rgba(8, 25, 35, 0.1);
   overflow: hidden;
 }
 

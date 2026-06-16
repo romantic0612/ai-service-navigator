@@ -69,6 +69,7 @@ const monitor = ref<MonitorOverview | null>(null);
 const monitorDays = ref(30);
 const monitorRequireLogin = ref(false);
 const expandedUnmetCategory = ref<string | null>(null);
+const monitorUnmetPanel = ref<HTMLElement | null>(null);
 const monitorBusyNeedKey = ref('');
 const monitorActionMessage = ref('');
 const monitorPriorityOptions: Array<'high' | 'medium' | 'low'> = ['high', 'medium', 'low'];
@@ -369,9 +370,13 @@ async function appendUnreadNotifications(userId: string) {
   }
 }
 
-function toggleUnmetCategory(category: string) {
+async function toggleUnmetCategory(category: string) {
   expandedUnmetCategory.value = expandedUnmetCategory.value === category ? null : category;
   monitorActionMessage.value = '';
+  if (expandedUnmetCategory.value) {
+    await nextTick();
+    monitorUnmetPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }
 }
 
 async function setUnmetPriority(item: MonitorUnmetNeedItem, priority: 'high' | 'medium' | 'low') {
@@ -895,10 +900,10 @@ function defaultWelcomeMessages(): ChatMessage[] {
 
           <div
             v-if="monitorExpandedUnmetItems.length"
-            class="monitor-unmet-drawer-backdrop"
-            @click="expandedUnmetCategory = null"
+            ref="monitorUnmetPanel"
+            class="monitor-unmet-inline-panel"
           >
-            <div class="monitor-unmet-detail-panel" @click.stop>
+            <div class="monitor-unmet-detail-panel">
               <div class="monitor-unmet-detail-panel__handle" aria-hidden="true"></div>
               <div class="monitor-unmet-detail-panel__head">
                 <div>
