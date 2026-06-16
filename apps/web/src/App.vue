@@ -114,10 +114,6 @@ const monitorVisitorTrend = computed(() =>
   })),
 );
 const monitorVisitorPeak = computed(() => Math.max(...monitorVisitorTrend.value.map((item) => item.visitors), 1));
-const monitorMonthlyVisitorTrend = computed(() => monitor.value?.visitorMonthlyTrend ?? []);
-const monitorMonthlyVisitorPeak = computed(() =>
-  Math.max(...monitorMonthlyVisitorTrend.value.map((item) => item.visitors), 1),
-);
 const monitorRoleShareChart = computed(() => (monitor.value?.roleStats ?? []).filter((item) => item.askCount > 0).slice(0, 6));
 const monitorStudentQuestionChart = computed(() => (monitor.value?.studentTopQuestions ?? []).slice(0, 6));
 const monitorTeacherQuestionChart = computed(() => (monitor.value?.teacherTopQuestions ?? []).slice(0, 6));
@@ -185,7 +181,11 @@ const monitorExpandedUnmetItems = computed(() => {
     return [];
   }
 
-  return (monitor.value?.unmetNeeds.items ?? []).filter((item) => item.suggestedCategory === expandedUnmetCategory.value);
+  const priorityRank = { high: 3, medium: 2, low: 1 };
+  return (monitor.value?.unmetNeeds.items ?? [])
+    .filter((item) => item.suggestedCategory === expandedUnmetCategory.value)
+    .sort((left, right) => priorityRank[right.priority] - priorityRank[left.priority] || right.count - left.count)
+    .slice(0, 12);
 });
 
 const quickPrompts = computed(() => {
@@ -692,41 +692,6 @@ function defaultWelcomeMessages(): ChatMessage[] {
           </div>
         </section>
 
-        <section class="monitor-chart-card monitor-chart-card--primary">
-          <div class="monitor-card__heading">
-            <div>
-              <span>Year Trend</span>
-              <h2>年度访问趋势</h2>
-            </div>
-            <small>12 个月</small>
-          </div>
-          <div class="monitor-axis-chart">
-            <div class="monitor-axis-chart__y">
-              <span>{{ monitorMonthlyVisitorPeak }}</span>
-              <span>{{ Math.ceil(monitorMonthlyVisitorPeak / 2) }}</span>
-              <span>0</span>
-            </div>
-            <div class="monitor-axis-chart__plot">
-              <svg viewBox="0 0 300 132" role="img" aria-label="年度访问人数趋势图">
-                <polyline
-                  :points="monitorLinePoints(monitorMonthlyVisitorTrend.map((item) => item.visitors), monitorMonthlyVisitorPeak)"
-                  class="monitor-axis-chart__line monitor-axis-chart__line--monthly"
-                />
-                <circle
-                  v-for="(item, index) in monitorMonthlyVisitorTrend"
-                  :key="item.month"
-                  :cx="monitorPointX(index, monitorMonthlyVisitorTrend.length)"
-                  :cy="monitorPointY(item.visitors, monitorMonthlyVisitorPeak)"
-                  r="3.5"
-                />
-              </svg>
-              <div class="monitor-axis-chart__x monitor-axis-chart__x--monthly">
-                <span v-for="item in monitorMonthlyVisitorTrend" :key="item.month">{{ item.month }}</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
         <section class="monitor-card monitor-card--pie">
           <div class="monitor-card__heading">
             <div>
@@ -918,30 +883,22 @@ function defaultWelcomeMessages(): ChatMessage[] {
             <div class="monitor-unmet-detail-panel" @click.stop>
             <div class="monitor-unmet-detail-panel__head">
               <div>
-                <span>Manual Review</span>
-                <h3>{{ expandedUnmetCategory }}待处理小项</h3>
+                <span>Manual Review · 前 {{ monitorExpandedUnmetItems.length }} 项</span>
+                <h3>{{ expandedUnmetCategory }}</h3>
               </div>
               <button type="button" aria-label="关闭" @click="expandedUnmetCategory = null">
                 <X :size="18" />
               </button>
-              <small>点“已落实并通知”后，会给问过该需求的用户生成站内提醒，并从待处理池隐藏。</small>
             </div>
             <div class="monitor-unmet-work-list">
             <article v-for="item in monitorExpandedUnmetItems" :key="item.key" class="monitor-unmet-work-item">
               <header>
                 <div>
                   <strong>{{ item.suggestedIntent }}</strong>
-                  <span>{{ item.users }} 人 / {{ item.count }} 次 · 最近 {{ item.lastAt }}</span>
+                  <span>{{ item.users }} 人 / {{ item.count }} 次</span>
                 </div>
                 <b :class="`monitor-priority monitor-priority--${item.priority}`">{{ monitorPriorityText(item.priority) }}</b>
               </header>
-              <p>{{ item.reason }}</p>
-              <details class="monitor-unmet-samples">
-                <summary>查看样例</summary>
-                <small v-for="sample in item.samples" :key="`${item.key}-${sample.userId}-${sample.createdAt}`">
-                  {{ sample.userName }}（{{ sample.userRole }}）：{{ sample.queryText }}
-                </small>
-              </details>
               <div class="monitor-unmet-actions">
                 <button
                   v-for="priority in monitorPriorityOptions"
