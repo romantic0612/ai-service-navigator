@@ -1531,22 +1531,32 @@ button {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 10px;
+  padding: 0 10px max(10px, env(safe-area-inset-bottom));
   background: rgba(8, 25, 35, 0.28);
   backdrop-filter: blur(8px);
+  overscroll-behavior: contain;
 }
 
 .monitor-unmet-detail-panel {
   display: grid;
-  gap: 9px;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 8px;
   width: min(100%, 640px);
-  max-height: min(64vh, 560px);
-  padding: 10px;
+  max-height: min(78dvh, 620px);
+  padding: 8px 10px 10px;
   border: 1px solid rgba(15, 118, 110, 0.18);
-  border-radius: 20px 20px 14px 14px;
+  border-radius: 22px 22px 14px 14px;
   background: linear-gradient(180deg, rgba(240, 252, 250, 0.95), rgba(255, 255, 255, 0.88));
   box-shadow: 0 -20px 60px rgba(8, 25, 35, 0.18);
   overflow: hidden;
+}
+
+.monitor-unmet-detail-panel__handle {
+  justify-self: center;
+  width: 42px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(96, 118, 132, 0.32);
 }
 
 .monitor-unmet-detail-panel__head {
@@ -1589,16 +1599,20 @@ button {
 
 .monitor-unmet-work-list {
   display: grid;
-  gap: 8px;
+  align-content: start;
+  gap: 7px;
   min-height: 0;
+  max-height: 100%;
   overflow-y: auto;
-  padding: 2px 2px 4px;
+  padding: 2px 2px max(8px, env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .monitor-unmet-work-item {
   display: grid;
-  gap: 8px;
-  padding: 10px;
+  gap: 7px;
+  padding: 9px;
   border: 1px solid rgba(159, 181, 188, 0.24);
   border-radius: 14px;
   background: #ffffff;
@@ -1617,7 +1631,7 @@ button {
 
 .monitor-unmet-work-item strong {
   color: #0f2233;
-  font-size: 0.94rem;
+  font-size: 0.92rem;
 }
 
 .monitor-unmet-work-item span,
@@ -1627,19 +1641,21 @@ button {
 }
 
 .monitor-unmet-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
 .monitor-unmet-actions button {
   border: 1px solid rgba(15, 118, 110, 0.18);
   border-radius: 999px;
-  padding: 7px 9px;
+  min-width: 0;
+  padding: 7px 8px;
   background: rgba(15, 118, 110, 0.07);
   color: #0f766e;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .monitor-unmet-actions button.is-selected {

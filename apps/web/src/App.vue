@@ -881,44 +881,47 @@ function defaultWelcomeMessages(): ChatMessage[] {
             @click="expandedUnmetCategory = null"
           >
             <div class="monitor-unmet-detail-panel" @click.stop>
-            <div class="monitor-unmet-detail-panel__head">
-              <div>
-                <span>Manual Review · 前 {{ monitorExpandedUnmetItems.length }} 项</span>
-                <h3>{{ expandedUnmetCategory }}</h3>
-              </div>
-              <button type="button" aria-label="关闭" @click="expandedUnmetCategory = null">
-                <X :size="18" />
-              </button>
-            </div>
-            <div class="monitor-unmet-work-list">
-            <article v-for="item in monitorExpandedUnmetItems" :key="item.key" class="monitor-unmet-work-item">
-              <header>
+              <div class="monitor-unmet-detail-panel__handle" aria-hidden="true"></div>
+              <div class="monitor-unmet-detail-panel__head">
                 <div>
-                  <strong>{{ item.suggestedIntent }}</strong>
-                  <span>{{ item.users }} 人 / {{ item.count }} 次</span>
+                  <span>Manual Review · 前 {{ monitorExpandedUnmetItems.length }} 项</span>
+                  <h3>{{ expandedUnmetCategory }}</h3>
                 </div>
-                <b :class="`monitor-priority monitor-priority--${item.priority}`">{{ monitorPriorityText(item.priority) }}</b>
-              </header>
-              <div class="monitor-unmet-actions">
-                <button
-                  v-for="priority in monitorPriorityOptions"
-                  :key="`${item.key}-${priority}`"
-                  type="button"
-                  :class="{ 'is-selected': item.priority === priority }"
-                  :disabled="monitorBusyNeedKey === item.key"
-                  @click.stop="setUnmetPriority(item, priority)"
-                >
-                  {{ monitorPriorityText(priority) }}
-                </button>
-                <button type="button" :disabled="monitorBusyNeedKey === item.key" @click.stop="resolveUnmetItem(item)">
-                  已落实并通知
-                </button>
-                <button type="button" :disabled="monitorBusyNeedKey === item.key" @click.stop="archiveUnmetItem(item)">
-                  隐藏
+                <button type="button" aria-label="关闭" @click="expandedUnmetCategory = null">
+                  <X :size="18" />
                 </button>
               </div>
-            </article>
-            </div>
+              <div class="monitor-unmet-work-list">
+                <article v-for="item in monitorExpandedUnmetItems" :key="item.key" class="monitor-unmet-work-item">
+                  <header>
+                    <div>
+                      <strong>{{ item.suggestedIntent }}</strong>
+                      <span>{{ item.users }} 人 / {{ item.count }} 次</span>
+                    </div>
+                    <b :class="`monitor-priority monitor-priority--${item.priority}`">
+                      {{ monitorPriorityText(item.priority) }}
+                    </b>
+                  </header>
+                  <div class="monitor-unmet-actions">
+                    <button
+                      v-for="priority in monitorPriorityOptions"
+                      :key="`${item.key}-${priority}`"
+                      type="button"
+                      :class="{ 'is-selected': item.priority === priority }"
+                      :disabled="monitorBusyNeedKey === item.key"
+                      @click.stop="setUnmetPriority(item, priority)"
+                    >
+                      {{ monitorPriorityText(priority) }}
+                    </button>
+                    <button type="button" :disabled="monitorBusyNeedKey === item.key" @click.stop="resolveUnmetItem(item)">
+                      已落实并通知
+                    </button>
+                    <button type="button" :disabled="monitorBusyNeedKey === item.key" @click.stop="archiveUnmetItem(item)">
+                      隐藏
+                    </button>
+                  </div>
+                </article>
+              </div>
             </div>
           </div>
         </section>
