@@ -464,27 +464,31 @@ export class MonitorService {
   }
 
   async getVisitorMonthlyTrend() {
-    const rows = await this.prisma.$queryRaw<Array<{ monthIndex: number; visitors: bigint }>>(Prisma.sql`
-      SELECT
-        MONTH(e.created_at) AS monthIndex,
-        COUNT(DISTINCT e.user_id) AS visitors
-      FROM user_events e
-      WHERE YEAR(e.created_at) = YEAR(CURDATE())
-        AND e.event_type IN ('ask', 'open_service', 'no_result')
-      GROUP BY monthIndex
-      ORDER BY monthIndex ASC
-    `);
-
     const buckets = Array.from({ length: 12 }, (_, index) => ({
       month: `${index + 1}月`,
       visitors: 0,
     }));
 
-    for (const row of rows) {
-      const bucket = buckets[row.monthIndex - 1];
-      if (bucket) {
-        bucket.visitors = Number(row.visitors);
+    try {
+      const rows = await this.prisma.$queryRaw<Array<{ monthIndex: number; visitors: bigint }>>(Prisma.sql`
+        SELECT
+          MONTH(e.created_at) AS monthIndex,
+          COUNT(DISTINCT e.user_id) AS visitors
+        FROM user_events e
+        WHERE YEAR(e.created_at) = YEAR(CURDATE())
+          AND e.event_type IN ('ask', 'open_service', 'no_result')
+        GROUP BY monthIndex
+        ORDER BY monthIndex ASC
+      `);
+
+      for (const row of rows) {
+        const bucket = buckets[row.monthIndex - 1];
+        if (bucket) {
+          bucket.visitors = Number(row.visitors);
+        }
       }
+    } catch {
+      return buckets;
     }
 
     return buckets;
