@@ -877,14 +877,23 @@ function defaultWelcomeMessages(): ChatMessage[] {
             </article>
           </div>
 
-          <div v-if="monitorExpandedUnmetItems.length" class="monitor-unmet-detail-panel">
+          <div
+            v-if="monitorExpandedUnmetItems.length"
+            class="monitor-unmet-drawer-backdrop"
+            @click="expandedUnmetCategory = null"
+          >
+            <div class="monitor-unmet-detail-panel" @click.stop>
             <div class="monitor-unmet-detail-panel__head">
               <div>
                 <span>Manual Review</span>
                 <h3>{{ expandedUnmetCategory }}待处理小项</h3>
               </div>
+              <button type="button" aria-label="关闭" @click="expandedUnmetCategory = null">
+                <X :size="18" />
+              </button>
               <small>点“已落实并通知”后，会给问过该需求的用户生成站内提醒，并从待处理池隐藏。</small>
             </div>
+            <div class="monitor-unmet-work-list">
             <article v-for="item in monitorExpandedUnmetItems" :key="item.key" class="monitor-unmet-work-item">
               <header>
                 <div>
@@ -894,11 +903,12 @@ function defaultWelcomeMessages(): ChatMessage[] {
                 <b :class="`monitor-priority monitor-priority--${item.priority}`">{{ monitorPriorityText(item.priority) }}</b>
               </header>
               <p>{{ item.reason }}</p>
-              <div class="monitor-unmet-samples">
+              <details class="monitor-unmet-samples">
+                <summary>查看样例</summary>
                 <small v-for="sample in item.samples" :key="`${item.key}-${sample.userId}-${sample.createdAt}`">
                   {{ sample.userName }}（{{ sample.userRole }}）：{{ sample.queryText }}
                 </small>
-              </div>
+              </details>
               <div class="monitor-unmet-actions">
                 <button
                   v-for="priority in monitorPriorityOptions"
@@ -918,6 +928,8 @@ function defaultWelcomeMessages(): ChatMessage[] {
                 </button>
               </div>
             </article>
+            </div>
+            </div>
           </div>
         </section>
       </template>
