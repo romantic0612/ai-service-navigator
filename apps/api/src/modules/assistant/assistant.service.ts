@@ -244,7 +244,13 @@ export class AssistantService {
 
     const usageText =
       requestedUsage === 'lighting' ? '照明' : requestedUsage === 'airConditioner' ? '空调' : '照明或空调';
-    const responseText = `${profileName}，我已根据住宿表查到你的宿舍：${guide.roomDisplay}，床位 ${dormInfo.CW || '未记录'}。电费转账时请按卡片里的字段选择，重点核对楼宇、楼层和房间，避免充错。`;
+    const guideSteps = this.buildElectricityGuideSteps(guide, dormInfo, usageText, requestedUsage);
+    const responseText = [
+      `${profileName}，我已根据住宿表查到你的宿舍：${guide.roomDisplay}，床位 ${dormInfo.CW || '未记录'}。`,
+      '电费转账时请按下面字段填写，避免充错房间：',
+      ...guideSteps.map((step, index) => `${index + 1}. ${step}`),
+      '如果你只是问电费政策，也请先按这个信息核对房间；真正付款前一定确认楼宇、楼层、房间无误。',
+    ].join('\n');
 
     return {
       action: 'recommend_service',
@@ -314,6 +320,33 @@ export class AssistantService {
     usageText: string,
     requestedUsage: 'lighting' | 'airConditioner' | 'both',
   ): ServiceItemCard {
+    const steps = this.buildElectricityGuideSteps(guide, dormInfo, usageText, requestedUsage);
+
+    return {
+      id: 'electricity-transfer-dorm-guide',
+      title: '电费转账填写指南',
+      category: '校园缴费',
+      description: `已根据住宿信息生成：${guide.roomDisplay}。金额范围 1-500 元，请核对楼宇、楼层、房间后再付款。`,
+      targetRoles: ['本科生', '研究生'],
+      entryUrl: ELECTRICITY_TRANSFER_URL,
+      department: '财务处 / 一卡通微门户',
+      contactPerson: '陈老师',
+      contactPhone: '0551-65786419',
+      serviceTime: '任何时间',
+      materials: ['本人住宿信息'],
+      processSteps: steps,
+      notice: '请先核对楼宇、楼层、房间后再付款。支付完成后，请持卡前往自助多媒体写卡，完成校园卡余额更新操作。',
+      assets: [],
+      lastVerifiedAt: '2026-06-17',
+    };
+  }
+
+  private buildElectricityGuideSteps(
+    guide: NonNullable<ReturnType<AssistantService['parseDormElectricityGuide']>>,
+    dormInfo: DormInfoRow,
+    usageText: string,
+    requestedUsage: 'lighting' | 'airConditioner' | 'both',
+  ) {
     const steps = [
       `选择区域：${guide.area}`,
       `选择用途：${usageText}`,
@@ -333,23 +366,7 @@ export class AssistantService {
     steps.push('输入转账金额：1-500元');
     steps.push(`付款前再次核对：${dormInfo.XM || '本人'}，${guide.roomDisplay}，床位${dormInfo.CW || '未记录'}`);
 
-    return {
-      id: 'electricity-transfer-dorm-guide',
-      title: '电费转账填写指南',
-      category: '校园缴费',
-      description: `已根据住宿信息生成：${guide.roomDisplay}。请按下面步骤选择，避免充错房间。`,
-      targetRoles: ['本科生', '研究生'],
-      entryUrl: ELECTRICITY_TRANSFER_URL,
-      department: '财务处 / 一卡通微门户',
-      contactPerson: '陈老师',
-      contactPhone: '0551-65786419',
-      serviceTime: '任何时间',
-      materials: ['本人住宿信息'],
-      processSteps: steps,
-      notice: '请先核对楼宇、楼层、房间后再付款。支付完成后，请持卡前往自助多媒体写卡，完成校园卡余额更新操作。',
-      assets: [],
-      lastVerifiedAt: '2026-06-17',
-    };
+    return steps;
   }
 
   private buildElectricityFallbackCard(): ServiceItemCard {
