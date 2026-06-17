@@ -1,11 +1,24 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { AiMemoryService } from '../ai-memory/ai-memory.service';
 import { ProfileSummary } from '../profiles/profile-summary.types';
 import { ServiceItemCard } from '../services/service-item.types';
 import { DifyService } from '../dify/dify.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { ProfilesService } from '../profiles/profiles.service';
 import { ServiceItemsService } from '../services/service-items.service';
 import { AssistantReply, ProfileUpdateCandidate } from './assistant.types';
+
+const ELECTRICITY_TRANSFER_URL =
+  'https://myvpn.ahau.edu.cn:10443/http/webvpn47107d807fd53f8c72c1effc7563ea4f/ZSANAPP/WEB/PowerGridTransferAuth.aspx';
+
+type DormInfoRow = {
+  XH: string;
+  XM: string | null;
+  LD: string | null;
+  FJ: string | null;
+  CW: string | null;
+};
 
 @Injectable()
 export class AssistantService {
@@ -14,6 +27,7 @@ export class AssistantService {
     private readonly serviceItemsService: ServiceItemsService,
     private readonly difyService: DifyService,
     private readonly aiMemoryService: AiMemoryService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async opening(userId: string) {
@@ -24,6 +38,21 @@ export class AssistantService {
   async reply(userId: string, message: string): Promise<AssistantReply> {
     const profile = await this.profilesService.getSummary(userId);
     await this.profilesService.recordAskEvent(userId, message);
+
+    if (this.isElectricityTransferQuery(message)) {
+      const electricityReply = await this.buildElectricityTransferReply(userId, profile, message);
+      await this.recordTurn(userId, message, {
+        action: 'recommend_service',
+        responseText: electricityReply.message,
+        serviceCards: electricityReply.serviceCards,
+        intent: '电费转账',
+        metadata: {
+          matchedBy: 'dorm_info',
+          sourceTable: 'xszsxx',
+        },
+      });
+      return electricityReply;
+    }
 
     if (this.aiMemoryService.isGuideQuery(message)) {
       const guide = await this.aiMemoryService.generateGuide(profile, message);
@@ -166,6 +195,186 @@ export class AssistantService {
       : '我没有返回这个不匹配入口，你可以换成当前身份可办理的事项再问。';
 
     return `这条事项和${roleText}不匹配。${targetText}。${alternativeText}`;
+  }
+
+  private isElectricityTransferQuery(message: string) {
+    const normalized = message.replace(/\s+/g, '');
+    return [
+      '电费',
+      '充电',
+      '电费转账',
+      '电费充值',
+      '充电费',
+      '宿舍电',
+      '照明费',
+      '空调费',
+      '空调电',
+    ].some((keyword) => normalized.includes(keyword));
+  }
+
+  private async buildElectricityTransferReply(
+    userId: string,
+    profile: ProfileSummary,
+    message: string,
+  ): Promise<AssistantReply> {
+    const dormInfo = await this.getDormInfo(userId);
+    const profileName = profile.name || dormInfo?.XM || '同学';
+    const requestedUsage = this.detectElectricityUsage(message);
+
+    if (!dormInfo || !dormInfo.LD || !dormInfo.FJ || dormInfo.LD.includes('走读')) {
+      const responseText = `${profileName}，我还没有查到稳定的住宿楼栋和房间信息，暂时不能直接告诉你电费转账该选哪个房间。请先联系辅导员或宿管确认住宿信息，再进入电费转账页面操作，避免充错房间。`;
+      return {
+        action: 'recommend_service',
+        message: responseText,
+        serviceCards: [this.buildElectricityFallbackCard()],
+        profileUpdateCandidates: [],
+      };
+    }
+
+    const guide = this.parseDormElectricityGuide(dormInfo);
+    if (!guide) {
+      const responseText = `${profileName}，我查到了住宿信息，但楼栋编码“${dormInfo.LD}”暂时无法判断属于校本部宿舍还是大学生公寓。请先核对宿舍信息，再进行电费转账。`;
+      return {
+        action: 'recommend_service',
+        message: responseText,
+        serviceCards: [this.buildElectricityFallbackCard()],
+        profileUpdateCandidates: [],
+      };
+    }
+
+    const usageText =
+      requestedUsage === 'lighting' ? '照明' : requestedUsage === 'airConditioner' ? '空调' : '照明或空调';
+    const responseText = `${profileName}，我已根据住宿表查到你的宿舍：${guide.roomDisplay}，床位 ${dormInfo.CW || '未记录'}。电费转账时请按卡片里的字段选择，重点核对楼宇、楼层和房间，避免充错。`;
+
+    return {
+      action: 'recommend_service',
+      message: responseText,
+      serviceCards: [this.buildElectricityGuideCard(guide, dormInfo, usageText, requestedUsage)],
+      profileUpdateCandidates: [],
+    };
+  }
+
+  private async getDormInfo(userId: string): Promise<DormInfoRow | null> {
+    const rows = await this.prisma.$queryRaw<DormInfoRow[]>(Prisma.sql`
+      SELECT XH, XM, LD, FJ, CW
+      FROM xszsxx
+      WHERE XH = ${userId}
+      LIMIT 1
+    `);
+
+    return rows[0] ?? null;
+  }
+
+  private detectElectricityUsage(message: string): 'lighting' | 'airConditioner' | 'both' {
+    if (message.includes('空调')) {
+      return 'airConditioner';
+    }
+    if (message.includes('照明')) {
+      return 'lighting';
+    }
+    return 'both';
+  }
+
+  private parseDormElectricityGuide(dormInfo: DormInfoRow) {
+    const buildingCode = dormInfo.LD?.trim().toUpperCase() ?? '';
+    const roomNumber = dormInfo.FJ?.trim() ?? '';
+    const match = buildingCode.match(/^([NB])0*(\d+)$/);
+    if (!match || !roomNumber) {
+      return null;
+    }
+
+    const [, prefix, buildingNumber] = match;
+    const isMainCampus = prefix === 'N';
+    const area = isMainCampus ? '校本部宿舍' : '大学生公寓';
+    const floorNumber = this.inferFloorNumber(roomNumber);
+    const roomDisplay = isMainCampus ? `${buildingNumber}栋${roomNumber}室` : `K${buildingNumber}-${roomNumber}`;
+
+    return {
+      area,
+      buildingNumber,
+      floorNumber,
+      roomNumber,
+      roomDisplay,
+      lightingBuilding: `${area}·照明_${buildingNumber}栋`,
+      airConditionerBuilding: `${area}·空调_${buildingNumber}栋`,
+    };
+  }
+
+  private inferFloorNumber(roomNumber: string) {
+    const trimmed = roomNumber.trim();
+    if (/^\d{4,}$/.test(trimmed)) {
+      return Number.parseInt(trimmed.slice(0, -2), 10);
+    }
+    return Number.parseInt(trimmed.slice(0, 1), 10);
+  }
+
+  private buildElectricityGuideCard(
+    guide: NonNullable<ReturnType<AssistantService['parseDormElectricityGuide']>>,
+    dormInfo: DormInfoRow,
+    usageText: string,
+    requestedUsage: 'lighting' | 'airConditioner' | 'both',
+  ): ServiceItemCard {
+    const steps = [
+      `选择区域：${guide.area}`,
+      `选择用途：${usageText}`,
+    ];
+
+    if (requestedUsage === 'lighting') {
+      steps.push(`选择楼宇：${guide.lightingBuilding}`);
+    } else if (requestedUsage === 'airConditioner') {
+      steps.push(`选择楼宇：${guide.airConditionerBuilding}`);
+    } else {
+      steps.push(`如果充照明，选择楼宇：${guide.lightingBuilding}`);
+      steps.push(`如果充空调，选择楼宇：${guide.airConditionerBuilding}`);
+    }
+
+    steps.push(`选择楼层：第${guide.floorNumber}层`);
+    steps.push(`选择房间：${guide.roomDisplay}`);
+    steps.push('输入转账金额：1-500元');
+    steps.push(`付款前再次核对：${dormInfo.XM || '本人'}，${guide.roomDisplay}，床位${dormInfo.CW || '未记录'}`);
+
+    return {
+      id: 'electricity-transfer-dorm-guide',
+      title: '电费转账填写指南',
+      category: '校园缴费',
+      description: `已根据住宿信息生成：${guide.roomDisplay}。请按下面步骤选择，避免充错房间。`,
+      targetRoles: ['本科生', '研究生'],
+      entryUrl: ELECTRICITY_TRANSFER_URL,
+      department: '财务处 / 一卡通微门户',
+      contactPerson: '陈老师',
+      contactPhone: '0551-65786419',
+      serviceTime: '任何时间',
+      materials: ['本人住宿信息'],
+      processSteps: steps,
+      notice: '请先核对楼宇、楼层、房间后再付款。支付完成后，请持卡前往自助多媒体写卡，完成校园卡余额更新操作。',
+      assets: [],
+      lastVerifiedAt: '2026-06-17',
+    };
+  }
+
+  private buildElectricityFallbackCard(): ServiceItemCard {
+    return {
+      id: 'electricity-transfer-dorm-guide',
+      title: '电费转账',
+      category: '校园缴费',
+      description: '当前未能自动匹配住宿信息，请确认宿舍楼栋和房间后再办理。',
+      targetRoles: ['本科生', '研究生'],
+      entryUrl: ELECTRICITY_TRANSFER_URL,
+      department: '财务处 / 一卡通微门户',
+      contactPerson: '陈老师',
+      contactPhone: '0551-65786419',
+      serviceTime: '任何时间',
+      materials: ['宿舍楼栋', '楼层', '房间号'],
+      processSteps: [
+        '进入电费转账页面',
+        '依次选择区域、用途、楼宇、楼层、房间',
+        '确认信息无误后输入金额并付款',
+        '支付完成后，请持卡前往自助多媒体写卡，完成校园卡余额更新操作',
+      ],
+      notice: '没有查到住宿信息时不要凭印象充值，避免充错房间。',
+      assets: [],
+      lastVerifiedAt: '2026-06-17',
+    };
   }
 
   private async recordTurn(
