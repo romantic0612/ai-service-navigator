@@ -73,6 +73,7 @@ const expandedUnmetCategory = ref<string | null>(null);
 const monitorUnmetPanel = ref<HTMLElement | null>(null);
 const monitorBusyNeedKey = ref('');
 const monitorActionMessage = ref('');
+const activeVisitorTrendDay = ref('');
 const monitorPriorityOptions: Array<'high' | 'medium' | 'low'> = ['high', 'medium', 'low'];
 let monitorRefreshTimer: number | undefined;
 const monitorTotalClicks = computed(() => monitor.value?.topServices.reduce((sum, item) => sum + item.clicks, 0) ?? 0);
@@ -676,6 +677,14 @@ function monitorPointY(value: number, total: number) {
   return Math.round(124 - (value / total) * 108);
 }
 
+function monitorPointXPercent(index: number, length: number) {
+  return (monitorPointX(index, length) / 300) * 100;
+}
+
+function monitorPointYPercent(value: number, total: number) {
+  return (monitorPointY(value, total) / 132) * 100;
+}
+
 function defaultWelcomeMessages(): ChatMessage[] {
   return [
     {
@@ -783,8 +792,29 @@ function defaultWelcomeMessages(): ChatMessage[] {
                   r="4"
                 />
               </svg>
+              <button
+                v-for="(item, index) in monitorVisitorTrend"
+                :key="`${item.day}-hit`"
+                type="button"
+                class="monitor-axis-chart__point-hit"
+                :class="{ 'monitor-axis-chart__point-hit--active': activeVisitorTrendDay === item.day }"
+                :style="{
+                  left: `${monitorPointXPercent(index, monitorVisitorTrend.length)}%`,
+                  top: `${monitorPointYPercent(item.visitors, monitorVisitorPeak)}%`,
+                }"
+                :aria-label="`${item.day} 访问人数 ${item.visitors}`"
+                @click="activeVisitorTrendDay = activeVisitorTrendDay === item.day ? '' : item.day"
+              >
+                <span>{{ item.day }}：{{ item.visitors }} 人</span>
+              </button>
               <div class="monitor-axis-chart__x">
-                <span v-for="item in monitorVisitorTrend" :key="item.day">{{ item.day }}</span>
+                <span
+                  v-for="(item, index) in monitorVisitorTrend"
+                  :key="item.day"
+                  :style="{ left: `${monitorPointXPercent(index, monitorVisitorTrend.length)}%` }"
+                >
+                  {{ item.day }}
+                </span>
               </div>
             </div>
           </div>
