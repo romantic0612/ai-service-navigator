@@ -16,7 +16,7 @@ import {
   UsersRound,
   X,
 } from '@lucide/vue';
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import ServiceCard from './components/ServiceCard.vue';
 import {
   archiveMonitorUnmetNeed,
@@ -73,6 +73,7 @@ const monitorUnmetPanel = ref<HTMLElement | null>(null);
 const monitorBusyNeedKey = ref('');
 const monitorActionMessage = ref('');
 const monitorPriorityOptions: Array<'high' | 'medium' | 'low'> = ['high', 'medium', 'low'];
+let monitorRefreshTimer: number | undefined;
 const monitorTotalClicks = computed(() => monitor.value?.topServices.reduce((sum, item) => sum + item.clicks, 0) ?? 0);
 const monitorNoResultTotal = computed(
   () => monitor.value?.noResultQuestions.reduce((sum, item) => sum + item.count, 0) ?? 0,
@@ -234,6 +235,10 @@ if (isMonitorPage.value) {
   scrollToLatestMessage('auto');
 }
 
+onBeforeUnmount(() => {
+  stopMonitorAutoRefresh();
+});
+
 function resolveUserId(isMonitor: boolean) {
   const url = new URL(window.location.href);
   const queryUserId = url.searchParams.get('userId');
@@ -283,11 +288,13 @@ async function initMonitorPage() {
     const session = await getMonitorSession();
     if (!session.authorized) {
       monitorRequireLogin.value = true;
+      stopMonitorAutoRefresh();
       return;
     }
 
     monitorRequireLogin.value = false;
     await loadMonitorData();
+    startMonitorAutoRefresh();
   } catch {
     monitorError.value = '监测数据暂时不可用，请稍后重试';
   } finally {
@@ -306,6 +313,26 @@ async function loadMonitorData() {
   }
 }
 
+function startMonitorAutoRefresh() {
+  stopMonitorAutoRefresh();
+  monitorRefreshTimer = Number(window.setInterval(() => {
+    if (monitorRequireLogin.value || monitorLoading.value || monitorBusyNeedKey.value || document.visibilityState !== 'visible') {
+      return;
+    }
+
+    void loadMonitorData().catch(() => {
+      monitorError.value = '监测数据暂时不可用，请稍后重试';
+    });
+  }, 15000));
+}
+
+function stopMonitorAutoRefresh() {
+  if (monitorRefreshTimer) {
+    window.clearInterval(monitorRefreshTimer);
+    monitorRefreshTimer = undefined;
+  }
+}
+
 async function parseLoginResult(result: MonitorLoginResult) {
   if (result.authorized) {
     monitorRequireLogin.value = false;
@@ -320,6 +347,7 @@ async function parseLoginResult(result: MonitorLoginResult) {
       .finally(() => {
         monitorLoading.value = false;
       });
+    startMonitorAutoRefresh();
     return;
   }
 
@@ -712,7 +740,7 @@ function defaultWelcomeMessages(): ChatMessage[] {
       <template v-else-if="monitor">
         <section class="monitor-hero monitor-hero--visitors">
           <div>
-            <p>实时同步数据库</p>
+            <p>每 15 秒同步数据库</p>
             <h2>总访客量 {{ monitor.visitorSummary.totalVisitors }}</h2>
           </div>
           <span>今日活跃 {{ monitor.visitorSummary.todayActiveVisitors }}</span>
