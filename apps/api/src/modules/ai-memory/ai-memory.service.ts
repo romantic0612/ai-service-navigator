@@ -22,6 +22,20 @@ const GUIDE_QUERIES = [
   '换个事项',
   '换哪一个',
   '换一个',
+  '还有什么',
+  '还有哪些',
+  '其他事项',
+  '其他事情',
+  '还有别的',
+  '还有没有',
+  '能办哪些',
+  '可以办哪些',
+  '我能办哪些',
+  '有什么事项',
+  '有哪些事项',
+  '推荐事项',
+  '推荐一下',
+  '帮我推荐',
   '看看热门服务',
   '热门服务',
   '看看常用服务',
@@ -237,6 +251,14 @@ export class AiMemoryService {
     message: string,
   ): GuideReply {
     const commonSuggestions = popularServices.length ? popularServices.slice(0, 3) : ['校园网账号服务', '电子签章服务', '校友卡'];
+    if (this.isRecommendationIntent(message)) {
+      const roleText = profile.role ? `按你当前的${profile.role}身份` : '按当前身份';
+      return {
+        reply: `${roleText}，我可以先推荐一些高频、容易找不到入口或容易填错的事项。你也可以直接说“缴费、宿舍、学籍、图书馆、网络账号”等方向，我再帮你缩小范围。`,
+        suggestions: commonSuggestions,
+      };
+    }
+
     if (['换一个事项', '换个事项', '换哪一个', '换一个'].some((text) => message.includes(text))) {
       return {
         reply: '可以。你想换成哪类事情？也可以直接点下面这些近期常用事项。',
@@ -550,9 +572,30 @@ export class AiMemoryService {
       '你是安徽农业大学 AI 办事助手的引导模型。',
       '用户没有明确办事事项时，根据 OAuth 画像、低敏记忆，生成一句自然、简短的引导。',
       '如果 current_message 表示“换一个事项”，要追问用户想换哪个方向，并给 recent_common_services 中的候选。',
+      '如果 current_message 表示“还有什么事项、我能办哪些、推荐一下”，要按用户身份推荐方向，不要假装已经查到具体链接。',
       '不要编造办事链接，不要说你能自动代办。',
       '输出严格 JSON：{"reply":"...","suggestions":["..."]}。',
     ].join('\n');
+  }
+
+  private isRecommendationIntent(message: string): boolean {
+    const normalized = message.trim().replace(/\s+/g, '');
+    return [
+      '还有什么',
+      '还有哪些',
+      '其他事项',
+      '其他事情',
+      '还有别的',
+      '还有没有',
+      '能办哪些',
+      '可以办哪些',
+      '我能办哪些',
+      '有什么事项',
+      '有哪些事项',
+      '推荐事项',
+      '推荐一下',
+      '帮我推荐',
+    ].some((keyword) => normalized.includes(keyword));
   }
 
   private memoryExtractionPrompt(): string {

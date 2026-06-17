@@ -54,6 +54,11 @@ export class AssistantService {
       return electricityReply;
     }
 
+    if (this.isServiceRecommendationQuery(message)) {
+      const recommendationReply = await this.buildServiceRecommendationReply(userId, profile, message);
+      return recommendationReply;
+    }
+
     if (this.aiMemoryService.isGuideQuery(message)) {
       const guide = await this.aiMemoryService.generateGuide(profile, message);
       await this.recordTurn(userId, message, {
@@ -195,6 +200,66 @@ export class AssistantService {
       : '我没有返回这个不匹配入口，你可以换成当前身份可办理的事项再问。';
 
     return `这条事项和${roleText}不匹配。${targetText}。${alternativeText}`;
+  }
+
+  private async buildServiceRecommendationReply(
+    userId: string,
+    profile: ProfileSummary,
+    message: string,
+  ): Promise<AssistantReply> {
+    const [guide, serviceCards] = await Promise.all([
+      this.aiMemoryService.generateGuide(profile, message),
+      this.serviceItemsService.recommendForProfile(profile),
+    ]);
+    const messageText = this.buildServiceRecommendationMessage(guide.reply, serviceCards);
+
+    await this.recordTurn(userId, message, {
+      action: 'guide',
+      responseText: messageText,
+      serviceCards,
+      metadata: {
+        route: 'service_recommendation',
+        matchedBy: 'profile_recommendation',
+      },
+    });
+
+    return {
+      action: 'guide',
+      message: messageText,
+      serviceCards,
+      guideSuggestions: guide.suggestions,
+      profileUpdateCandidates: [],
+    };
+  }
+
+  private buildServiceRecommendationMessage(
+    guideReply: string,
+    serviceCards: ServiceItemCard[],
+  ): string {
+    const cardText = serviceCards.length
+      ? `我先给你放 ${serviceCards.length} 个可直接点开的入口。`
+      : '我暂时没有筛到可直接点开的入口，你可以补充一个方向，比如缴费、宿舍、学籍、图书馆或网络账号。';
+    return `${guideReply}\n${cardText}`;
+  }
+
+  private isServiceRecommendationQuery(message: string) {
+    const normalized = message.replace(/\s+/g, '');
+    return [
+      '还有什么',
+      '还有哪些',
+      '其他事项',
+      '其他事情',
+      '还有别的',
+      '还有没有',
+      '能办哪些',
+      '可以办哪些',
+      '我能办哪些',
+      '有什么事项',
+      '有哪些事项',
+      '推荐事项',
+      '推荐一下',
+      '帮我推荐',
+    ].some((keyword) => normalized.includes(keyword));
   }
 
   private isElectricityTransferQuery(message: string) {
