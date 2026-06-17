@@ -273,12 +273,13 @@ export class MonitorService {
     `);
 
     const loginRows = await this.prisma.$queryRaw<Array<{ day: string; logins: bigint }>>(Prisma.sql`
-      SELECT DATE_FORMAT(p.updated_at, '%m-%d') AS day,
-             COUNT(*) AS logins
-      FROM user_profiles p
-      WHERE p.updated_at >= ${from}
+      SELECT DATE_FORMAT(e.created_at, '%m-%d') AS day,
+             COUNT(DISTINCT e.user_id) AS logins
+      FROM user_events e
+      WHERE e.created_at >= ${from}
+        AND e.event_type = 'app_open'
       GROUP BY day
-      ORDER BY MIN(p.updated_at) ASC
+      ORDER BY MIN(e.created_at) ASC
     `);
 
     const bucketMap = new Map<
@@ -342,10 +343,11 @@ export class MonitorService {
     `);
 
     const loginRows = await this.prisma.$queryRaw<Array<{ hour: number; logins: bigint }>>(Prisma.sql`
-      SELECT HOUR(p.updated_at) AS hour,
-             COUNT(*) AS logins
-      FROM user_profiles p
-      WHERE p.updated_at >= ${from}
+      SELECT HOUR(e.created_at) AS hour,
+             COUNT(DISTINCT e.user_id) AS logins
+      FROM user_events e
+      WHERE e.created_at >= ${from}
+        AND e.event_type = 'app_open'
       GROUP BY hour
       ORDER BY hour ASC
     `);
@@ -388,16 +390,16 @@ export class MonitorService {
     const rows = await this.prisma.$queryRaw<
       Array<{ queryText: string | null; count: bigint; latestAt: Date; users: bigint }>
     >(Prisma.sql`
-      SELECT e.query_text AS queryText,
+      SELECT t.query_text AS queryText,
              COUNT(*) AS count,
-             MAX(e.created_at) AS latestAt,
-             COUNT(DISTINCT e.user_id) AS users
-      FROM user_events e
-      WHERE e.event_type = 'ask'
-        AND e.created_at >= ${from}
-        AND e.query_text IS NOT NULL
-        AND e.query_text <> ''
-      GROUP BY e.query_text
+             MAX(t.created_at) AS latestAt,
+             COUNT(DISTINCT t.user_id) AS users
+      FROM assistant_turns t
+      WHERE t.created_at >= ${from}
+        AND t.action <> 'guide'
+        AND t.query_text IS NOT NULL
+        AND t.query_text <> ''
+      GROUP BY t.query_text
       ORDER BY count DESC, latestAt DESC
       LIMIT ${limit}
     `);
@@ -417,18 +419,18 @@ export class MonitorService {
     const rows = await this.prisma.$queryRaw<
       Array<{ queryText: string | null; count: bigint; latestAt: Date; users: bigint }>
     >(Prisma.sql`
-      SELECT e.query_text AS queryText,
+      SELECT t.query_text AS queryText,
              COUNT(*) AS count,
-             MAX(e.created_at) AS latestAt,
-             COUNT(DISTINCT e.user_id) AS users
-      FROM user_events e
-      LEFT JOIN user_profiles p ON e.user_id = p.user_id
-      WHERE e.event_type = 'ask'
-        AND e.created_at >= ${from}
-        AND e.query_text IS NOT NULL
-        AND e.query_text <> ''
+             MAX(t.created_at) AS latestAt,
+             COUNT(DISTINCT t.user_id) AS users
+      FROM assistant_turns t
+      LEFT JOIN user_profiles p ON t.user_id = p.user_id
+      WHERE t.created_at >= ${from}
+        AND t.action <> 'guide'
+        AND t.query_text IS NOT NULL
+        AND t.query_text <> ''
         AND p.role IN (${Prisma.join(roles)})
-      GROUP BY e.query_text
+      GROUP BY t.query_text
       ORDER BY count DESC, latestAt DESC
       LIMIT ${limit}
     `);
@@ -444,13 +446,18 @@ export class MonitorService {
   async getVisitorSummary() {
     const [totalRows, todayRows] = await Promise.all([
       this.prisma.$queryRaw<Array<{ totalVisitors: bigint }>>(Prisma.sql`
-        SELECT COUNT(*) AS totalVisitors
-        FROM user_profiles
+        SELECT COUNT(DISTINCT visitor.user_id) AS totalVisitors
+        FROM (
+          SELECT user_id FROM user_profiles
+          UNION
+          SELECT user_id FROM user_events WHERE event_type = 'app_open'
+        ) visitor
       `),
       this.prisma.$queryRaw<Array<{ todayActiveVisitors: bigint }>>(Prisma.sql`
-        SELECT COUNT(*) AS todayActiveVisitors
-        FROM user_profiles
-        WHERE DATE(updated_at) = CURDATE()
+        SELECT COUNT(DISTINCT user_id) AS todayActiveVisitors
+        FROM user_events
+        WHERE event_type = 'app_open'
+          AND DATE(created_at) = CURDATE()
       `),
     ]);
 

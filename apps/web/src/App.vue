@@ -31,6 +31,7 @@ import {
   saveProfileMemory,
   sendAssistantMessage,
   updateMonitorUnmetNeedPriority,
+  recordUserEvent,
   type AssistantReply,
   type MonitorOverview,
   type MonitorUnmetNeedItem,
@@ -206,6 +207,7 @@ const quickPrompts = computed(() => {
 if (isMonitorPage.value) {
   initMonitorPage();
 } else if (currentUserId.value) {
+  recordAppOpen(currentUserId.value);
   getProfileSummary(currentUserId.value)
     .then((summary) => {
       profile.value = summary;
@@ -233,6 +235,13 @@ if (isMonitorPage.value) {
 } else {
   messages.value.push(...defaultWelcomeMessages());
   scrollToLatestMessage('auto');
+}
+
+function recordAppOpen(userId: string) {
+  void recordUserEvent(userId, 'app_open', undefined, {
+    path: window.location.pathname,
+    source: 'web',
+  }).catch(() => undefined);
 }
 
 onBeforeUnmount(() => {

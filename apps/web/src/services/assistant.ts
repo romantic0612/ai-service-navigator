@@ -384,6 +384,7 @@ export async function markUserNotificationRead(userId: string, notificationId: s
 export async function recordUserEvent(
   userId: string,
   eventType:
+    | 'app_open'
     | 'open_service'
     | 'view_service'
     | 'open_asset'
