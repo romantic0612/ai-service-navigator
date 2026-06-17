@@ -196,10 +196,10 @@ const quickPrompts = computed(() => {
   }
 
   if (profile.value?.role === '研究生') {
-    return ['研究生学籍异动', '研究生论文提交', '学生邮箱服务', '心理咨询预约'];
+    return ['电费转账怎么填', '研究生学籍异动', '学生邮箱服务', '心理咨询预约'];
   }
 
-  return ['云盘', '体育场馆预约', '学生档案查询', '会议室预约'];
+  return ['电费转账怎么填', '学生档案查询', '心理咨询预约', '体育场馆预约'];
 });
 
 if (isMonitorPage.value) {
@@ -353,7 +353,15 @@ async function appendUnreadNotifications(userId: string) {
   try {
     const notifications = await getUserNotifications(userId);
     for (const notification of notifications.slice(0, 3)) {
-      const content = `${notification.title}\n${notification.content}`;
+      const seenKey = `aibs_seen_notification_${notification.id}`;
+      if (window.localStorage.getItem(seenKey)) {
+        void markUserNotificationRead(userId, notification.id).catch(() => undefined);
+        continue;
+      }
+
+      window.localStorage.setItem(seenKey, '1');
+      void markUserNotificationRead(userId, notification.id).catch(() => undefined);
+      const content = formatNotificationMessage(notification.title, notification.content);
       messages.value.push({
         id: nextId.value++,
         role: 'assistant',
@@ -363,11 +371,41 @@ async function appendUnreadNotifications(userId: string) {
           message: content,
         },
       });
-      await markUserNotificationRead(userId, notification.id);
     }
   } catch {
     // Notifications are an enhancement; chat should still open if the table is unavailable.
   }
+}
+
+function formatNotificationMessage(title: string, content: string) {
+  const cleanTitle = title.trim();
+  const cleanContent = content.trim();
+  if (!cleanTitle) {
+    return cleanContent;
+  }
+  if (!cleanContent) {
+    return cleanTitle;
+  }
+
+  const titleIntent = extractQuotedText(cleanTitle);
+  const contentIntent = extractQuotedText(cleanContent);
+  if (titleIntent && contentIntent && titleIntent === contentIntent) {
+    const conciseContent = cleanContent
+      .replace(/^你上次问的“[^”]+”已经落实了，?/, '')
+      .replace(/^你问过的“[^”]+”已经落实了，?/, '')
+      .trim();
+    return conciseContent ? `${cleanTitle}\n${conciseContent}` : cleanTitle;
+  }
+
+  if (cleanContent.includes(cleanTitle)) {
+    return cleanContent;
+  }
+
+  return `${cleanTitle}\n${cleanContent}`;
+}
+
+function extractQuotedText(value: string) {
+  return value.match(/“([^”]+)”/)?.[1] ?? '';
 }
 
 async function toggleUnmetCategory(category: string) {
@@ -395,7 +433,7 @@ async function setUnmetPriority(item: MonitorUnmetNeedItem, priority: 'high' | '
 }
 
 async function resolveUnmetItem(item: MonitorUnmetNeedItem) {
-  const defaultMessage = `你上次问的“${item.suggestedIntent}”已经落实了，现在可以回到 AI 办事继续查询或办理。`;
+  const defaultMessage = '现在可以回到 AI 办事继续查询或办理。';
 
   monitorBusyNeedKey.value = item.key;
   monitorActionMessage.value = '';

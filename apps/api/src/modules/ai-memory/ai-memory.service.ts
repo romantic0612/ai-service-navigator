@@ -275,6 +275,13 @@ export class AiMemoryService {
       };
     }
 
+    if (profile.role === '本科生' || profile.role === '研究生') {
+      return {
+        opening: `${profile.name ? `${profile.name}，` : ''}你好，可以直接告诉我你想办什么。我会优先处理容易填错、找不到入口的高频事项。`,
+        quickActions: ['电费转账怎么填', '学生档案去向查询', '心理咨询预约'],
+      };
+    }
+
     return {
       opening: `${profile.name ? `${profile.name}，` : ''}你好，可以直接告诉我你想办什么，我会优先给你学校数据库里的可靠入口。`,
       quickActions: popularServices.length ? popularServices.slice(0, 3) : ['校园网账号服务', '电子签章服务', '校友卡'],

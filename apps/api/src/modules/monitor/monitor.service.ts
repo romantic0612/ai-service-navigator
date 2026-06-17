@@ -601,9 +601,7 @@ export class MonitorService {
     const userIds = [...new Set(matchedRows.map((row) => row.userId).filter(Boolean))];
     const sampleText = matchedRows[0]?.queryText ?? needKey;
     const title = dto.resolvedTitle?.trim() || sampleText;
-    const content =
-      dto.message?.trim() ||
-      `你上次问的“${title}”已经落实了，现在可以回到 AI 办事继续查询或办理。`;
+    const content = dto.message?.trim() || '现在可以回到 AI 办事继续查询或办理。';
     const now = databaseNow();
 
     await this.prisma.$executeRaw(Prisma.sql`

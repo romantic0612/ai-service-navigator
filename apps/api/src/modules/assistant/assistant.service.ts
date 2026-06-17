@@ -246,7 +246,7 @@ export class AssistantService {
       requestedUsage === 'lighting' ? '照明' : requestedUsage === 'airConditioner' ? '空调' : '照明或空调';
     const guideSteps = this.buildElectricityGuideSteps(guide, dormInfo, usageText, requestedUsage);
     const responseText = [
-      `${profileName}，我已根据住宿表查到你的宿舍：${guide.roomDisplay}，床位 ${dormInfo.CW || '未记录'}。`,
+      `${profileName}，我已根据住宿表查到你的宿舍：${guide.roomDisplay}。`,
       '电费转账时请按下面字段填写，避免充错房间：',
       ...guideSteps.map((step, index) => `${index + 1}. ${step}`),
       '如果你只是问电费政策，也请先按这个信息核对房间；真正付款前一定确认楼宇、楼层、房间无误。',
@@ -364,7 +364,7 @@ export class AssistantService {
     steps.push(`选择楼层：第${guide.floorNumber}层`);
     steps.push(`选择房间：${guide.roomDisplay}`);
     steps.push('输入转账金额：1-500元');
-    steps.push(`付款前再次核对：${dormInfo.XM || '本人'}，${guide.roomDisplay}，床位${dormInfo.CW || '未记录'}`);
+    steps.push(`付款前再次核对：${dormInfo.XM || '本人'}，${guide.roomDisplay}`);
 
     return steps;
   }

@@ -209,6 +209,11 @@ export class ServiceItemsService {
   async recommendForProfile(profile: ProfileSummary): Promise<ServiceItemCard[]> {
     const items = this.sortForRecommendation(this.filterByProfile(await this.getSearchableItems(), profile));
     const tags = profile.tags;
+    const painPointIds = this.getPainPointRecommendationIds(profile);
+    if (painPointIds.length) {
+      const ranked = this.rankByPreferredIds(items, painPointIds);
+      return ranked.slice(0, 3).map((item) => this.toCard(item));
+    }
 
     if (tags.includes('毕业生') || tags.includes('关注考研')) {
       return items.filter((item) => item.id === 'transcript-print').map((item) => this.toCard(item));
@@ -233,6 +238,22 @@ export class ServiceItemsService {
       scoredItems.length > 0 ? scoredItems.map(({ item }) => item) : this.sortForRecommendation(items);
 
     return candidates.slice(0, limit).map((item) => this.toCard(item));
+  }
+
+  private getPainPointRecommendationIds(profile: ProfileSummary): string[] {
+    if (profile.role === '本科生' || profile.role === '研究生') {
+      return ['electricity-transfer-dorm-guide'];
+    }
+
+    return [];
+  }
+
+  private rankByPreferredIds(items: DemoServiceItem[], preferredIds: string[]): DemoServiceItem[] {
+    const preferred = preferredIds
+      .map((id) => items.find((item) => item.id === id))
+      .filter((item): item is DemoServiceItem => Boolean(item));
+    const rest = items.filter((item) => !preferredIds.includes(item.id));
+    return [...preferred, ...rest];
   }
 
   private scoreItem(item: DemoServiceItem, query: string): number {
