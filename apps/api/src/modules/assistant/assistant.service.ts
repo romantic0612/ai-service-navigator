@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AiMemoryService } from '../ai-memory/ai-memory.service';
 import { ProfileSummary } from '../profiles/profile-summary.types';
@@ -20,8 +20,23 @@ type DormInfoRow = {
   CW: string | null;
 };
 
+type ElectricityBalanceRow = {
+  LD: string | null;
+  fjh: string | null;
+  sydl: Prisma.Decimal | string | number | null;
+  ydlx: string | null;
+};
+
+type ElectricityBalanceInfo = {
+  usage: 'lighting' | 'airConditioner' | 'unknown';
+  usageLabel: string;
+  remainingText: string;
+};
+
 @Injectable()
 export class AssistantService {
+  private readonly logger = new Logger(AssistantService.name);
+
   constructor(
     private readonly profilesService: ProfilesService,
     private readonly serviceItemsService: ServiceItemsService,
@@ -48,7 +63,7 @@ export class AssistantService {
         intent: '电费转账',
         metadata: {
           matchedBy: 'dorm_info',
-          sourceTable: 'xszsxx',
+          sourceTable: ['xszsxx', 'sssydl'],
         },
       });
       return electricityReply;
@@ -297,6 +312,7 @@ export class AssistantService {
     }
 
     const guide = this.parseDormElectricityGuide(dormInfo);
+    const electricityBalances = await this.getElectricityBalances(dormInfo);
     if (!guide) {
       const responseText = `${profileName}，我查到了住宿信息，但楼栋编码“${dormInfo.LD}”暂时无法判断属于校本部宿舍还是大学生公寓。请先核对宿舍信息，再进行电费转账。`;
       return {
@@ -309,9 +325,11 @@ export class AssistantService {
 
     const usageText =
       requestedUsage === 'lighting' ? '照明' : requestedUsage === 'airConditioner' ? '空调' : '照明或空调';
+    const balanceLines = this.buildElectricityBalanceLines(electricityBalances, requestedUsage);
     const guideSteps = this.buildElectricityGuideSteps(guide, dormInfo, usageText, requestedUsage);
     const responseText = [
       `${profileName}，我已根据住宿表查到你的宿舍：${guide.roomDisplay}。`,
+      ...balanceLines,
       '电费转账时请按下面字段填写，避免充错房间：',
       ...guideSteps.map((step, index) => `${index + 1}. ${step}`),
       '如果你只是问电费政策，也请先按这个信息核对房间；真正付款前一定确认楼宇、楼层、房间无误。',
@@ -320,7 +338,7 @@ export class AssistantService {
     return {
       action: 'recommend_service',
       message: responseText,
-      serviceCards: [this.buildElectricityGuideCard(guide, dormInfo, usageText, requestedUsage)],
+      serviceCards: [this.buildElectricityGuideCard(guide, dormInfo, usageText, requestedUsage, electricityBalances)],
       profileUpdateCandidates: [],
     };
   }
@@ -334,6 +352,80 @@ export class AssistantService {
     `);
 
     return rows[0] ?? null;
+  }
+
+  private async getElectricityBalances(dormInfo: DormInfoRow): Promise<ElectricityBalanceInfo[]> {
+    if (!dormInfo.LD || !dormInfo.FJ) {
+      return [];
+    }
+
+    try {
+      const rows = await this.prisma.$queryRaw<ElectricityBalanceRow[]>(Prisma.sql`
+        SELECT LD, fjh, sydl, ydlx
+        FROM sssydl
+        WHERE LD = ${dormInfo.LD}
+          AND fjh = ${dormInfo.FJ}
+      `);
+
+      return rows
+        .map((row) => this.normalizeElectricityBalance(row))
+        .sort((left, right) => this.electricityUsageOrder(left.usage) - this.electricityUsageOrder(right.usage));
+    } catch (error) {
+      this.logger.warn(`Failed to read sssydl electricity balance for ${dormInfo.LD}-${dormInfo.FJ}: ${String(error)}`);
+      return [];
+    }
+  }
+
+  private normalizeElectricityBalance(row: ElectricityBalanceRow): ElectricityBalanceInfo {
+    const rawUsage = row.ydlx?.trim() || '未知类型';
+    const usage = rawUsage.includes('空调') ? 'airConditioner' : rawUsage.includes('照明') ? 'lighting' : 'unknown';
+    const usageLabel = usage === 'lighting' ? '照明' : usage === 'airConditioner' ? '空调' : rawUsage;
+
+    return {
+      usage,
+      usageLabel,
+      remainingText: this.formatElectricityBalance(row.sydl),
+    };
+  }
+
+  private electricityUsageOrder(usage: ElectricityBalanceInfo['usage']) {
+    if (usage === 'lighting') {
+      return 1;
+    }
+    if (usage === 'airConditioner') {
+      return 2;
+    }
+    return 3;
+  }
+
+  private formatElectricityBalance(value: ElectricityBalanceRow['sydl']) {
+    if (value === null || value === undefined || value === '') {
+      return '暂无数据';
+    }
+
+    const text = String(value);
+    const numeric = Number(text);
+    if (Number.isFinite(numeric)) {
+      return `${Number.isInteger(numeric) ? numeric : numeric.toFixed(2).replace(/\.?0+$/, '')} 度`;
+    }
+
+    return `${text} 度`;
+  }
+
+  private buildElectricityBalanceLines(
+    balances: ElectricityBalanceInfo[],
+    requestedUsage: 'lighting' | 'airConditioner' | 'both',
+  ) {
+    const matchedBalances =
+      requestedUsage === 'both' ? balances : balances.filter((balance) => balance.usage === requestedUsage);
+
+    if (matchedBalances.length === 0) {
+      const usageText =
+        requestedUsage === 'lighting' ? '照明' : requestedUsage === 'airConditioner' ? '空调' : '照明/空调';
+      return [`当前暂未从剩余电量表查到该房间的${usageText}剩余电量，下面先给你填写方式。`];
+    }
+
+    return [`当前剩余电量：${matchedBalances.map((balance) => `${balance.usageLabel} ${balance.remainingText}`).join('，')}。`];
   }
 
   private detectElectricityUsage(message: string): 'lighting' | 'airConditioner' | 'both' {
@@ -384,14 +476,16 @@ export class AssistantService {
     dormInfo: DormInfoRow,
     usageText: string,
     requestedUsage: 'lighting' | 'airConditioner' | 'both',
+    balances: ElectricityBalanceInfo[],
   ): ServiceItemCard {
     const steps = this.buildElectricityGuideSteps(guide, dormInfo, usageText, requestedUsage);
+    const balanceLines = this.buildElectricityBalanceLines(balances, requestedUsage);
 
     return {
       id: 'electricity-transfer-dorm-guide',
       title: '电费转账填写指南',
       category: '校园缴费',
-      description: `已根据住宿信息生成：${guide.roomDisplay}。金额范围 1-500 元，请核对楼宇、楼层、房间后再付款。`,
+      description: `已根据住宿信息生成：${guide.roomDisplay}。${balanceLines.join('')} 金额范围 1-500 元，请核对楼宇、楼层、房间后再付款。`,
       targetRoles: ['本科生', '研究生'],
       entryUrl: ELECTRICITY_TRANSFER_URL,
       department: '财务处 / 一卡通微门户',
@@ -399,7 +493,7 @@ export class AssistantService {
       contactPhone: '0551-65786419',
       serviceTime: '任何时间',
       materials: ['本人住宿信息'],
-      processSteps: steps,
+      processSteps: [...balanceLines, ...steps],
       notice: '请先核对楼宇、楼层、房间后再付款。支付完成后，请持卡前往自助多媒体写卡，完成校园卡余额更新操作。',
       assets: [],
       lastVerifiedAt: '2026-06-17',
