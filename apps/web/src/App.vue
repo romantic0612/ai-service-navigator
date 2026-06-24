@@ -271,7 +271,8 @@ function resolveStoredUserId(isMonitor: boolean) {
 }
 
 async function initPortalBackedPage() {
-  const userId = currentUserId.value || (await resolvePortalSessionUserId());
+  const portalUserId = await resolvePortalSessionUserId();
+  const userId = portalUserId || currentUserId.value;
   if (!userId) {
     messages.value.push(...defaultWelcomeMessages());
     scrollToLatestMessage('auto');
@@ -320,7 +321,18 @@ async function resolvePortalSessionUserId() {
     }
 
     const user = session.user;
-    const userId = String(user.user_id || user.id || user.UserId || user.uid || '').trim();
+    const userId = String(
+      user.user_id ||
+        user.userId ||
+        user.UserId ||
+        user.id ||
+        user.uid ||
+        user.employeeNo ||
+        user.employee_no ||
+        user.studentNo ||
+        user.student_no ||
+        '',
+    ).trim();
     if (!userId) {
       return '';
     }
