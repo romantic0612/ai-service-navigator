@@ -32,6 +32,7 @@ import {
   sendAssistantMessage,
   updateMonitorUnmetNeedPriority,
   recordUserEvent,
+  appPath,
   type AssistantReply,
   type MonitorOverview,
   type MonitorUnmetNeedItem,
@@ -47,6 +48,11 @@ type ChatMessage = {
   reply?: AssistantReply;
 };
 
+type PortalSessionResponse = {
+  authenticated?: boolean;
+  user?: Record<string, unknown> | null;
+};
+
 const input = ref('');
 const loading = ref(false);
 const monitorLoading = ref(false);
@@ -60,10 +66,10 @@ const savedCandidates = ref<string[]>([]);
 const messages = ref<ChatMessage[]>([]);
 const chatPanel = ref<HTMLElement | null>(null);
 const isMonitorPage = computed(() => {
-  const pathname = window.location.pathname || '/';
+  const pathname = normalizedAppPathname();
   return pathname === '/monitor' || pathname.startsWith('/monitor/');
 });
-const currentUserId = ref(resolveUserId(isMonitorPage.value));
+const currentUserId = ref(resolveStoredUserId(isMonitorPage.value));
 const profile = ref<ProfileSummary | null>(null);
 const displayName = computed(() => profile.value?.name || '我的');
 const monitor = ref<MonitorOverview | null>(null);
@@ -207,35 +213,8 @@ const quickPrompts = computed(() => {
 
 if (isMonitorPage.value) {
   initMonitorPage();
-} else if (currentUserId.value) {
-  recordAppOpen(currentUserId.value);
-  getProfileSummary(currentUserId.value)
-    .then((summary) => {
-      profile.value = summary;
-      return getAssistantOpening(currentUserId.value);
-    })
-    .then(async (opening) => {
-      messages.value.push({
-        id: nextId.value++,
-        role: 'assistant',
-        content: opening.opening,
-        reply: {
-          action: 'guide',
-          message: opening.opening,
-          guideSuggestions: opening.quickActions,
-        },
-      });
-      await appendUnreadNotifications(currentUserId.value);
-      scrollToLatestMessage('auto');
-    })
-    .catch(() => {
-      profile.value = null;
-      messages.value.push(...defaultWelcomeMessages());
-      scrollToLatestMessage('auto');
-    });
 } else {
-  messages.value.push(...defaultWelcomeMessages());
-  scrollToLatestMessage('auto');
+  void initPortalBackedPage();
 }
 
 function recordAppOpen(userId: string) {
@@ -249,7 +228,17 @@ onBeforeUnmount(() => {
   stopMonitorAutoRefresh();
 });
 
-function resolveUserId(isMonitor: boolean) {
+function normalizedAppPathname() {
+  const base = (import.meta.env.BASE_URL || '/service/').replace(/\/$/, '');
+  const pathname = window.location.pathname || '/';
+  if (base && base !== '/' && (pathname === base || pathname.startsWith(`${base}/`))) {
+    return pathname.slice(base.length) || '/';
+  }
+
+  return pathname;
+}
+
+function resolveStoredUserId(isMonitor: boolean) {
   const url = new URL(window.location.href);
   const queryUserId = url.searchParams.get('userId');
   if (queryUserId) {
@@ -269,11 +258,7 @@ function resolveUserId(isMonitor: boolean) {
   }
 
   if (import.meta.env.PROD) {
-    if (isMonitor) {
-      return '';
-    }
-    goAuthLogin();
-    return '';
+    return isMonitor ? '' : '';
   }
 
   const devUserId = 'demo-user';
@@ -284,12 +269,73 @@ function resolveUserId(isMonitor: boolean) {
   return devUserId;
 }
 
-function goHome() {
-  window.location.href = '/';
+async function initPortalBackedPage() {
+  const userId = currentUserId.value || (await resolvePortalSessionUserId());
+  if (!userId) {
+    messages.value.push(...defaultWelcomeMessages());
+    scrollToLatestMessage('auto');
+    if (import.meta.env.PROD) {
+      window.location.href = '/';
+    }
+    return;
+  }
+
+  currentUserId.value = userId;
+  recordAppOpen(userId);
+  getProfileSummary(userId)
+    .then((summary) => {
+      profile.value = summary;
+      return getAssistantOpening(userId);
+    })
+    .then(async (opening) => {
+      messages.value.push({
+        id: nextId.value++,
+        role: 'assistant',
+        content: opening.opening,
+        reply: {
+          action: 'guide',
+          message: opening.opening,
+          guideSuggestions: opening.quickActions,
+        },
+      });
+      await appendUnreadNotifications(userId);
+      scrollToLatestMessage('auto');
+    })
+    .catch(() => {
+      profile.value = null;
+      messages.value.push(...defaultWelcomeMessages());
+      scrollToLatestMessage('auto');
+    });
 }
 
-function goAuthLogin() {
-  window.location.href = '/auth/oauth/login';
+async function resolvePortalSessionUserId() {
+  try {
+    const response = await fetch('/api/auth/session', { credentials: 'include' });
+    const session = (await response.json()) as PortalSessionResponse;
+    if (!response.ok || !session.authenticated || !session.user) {
+      return '';
+    }
+
+    const user = session.user;
+    const userId = String(user.user_id || user.id || user.UserId || user.uid || '').trim();
+    if (!userId) {
+      return '';
+    }
+
+    window.localStorage.setItem('aibs_user_id', userId);
+    const name = String(user.name || user.Name || user.user_name || '').trim();
+    if (name) {
+      profile.value = { userId, name, tags: [], recentIntents: [] };
+    }
+
+    return userId;
+  } catch {
+    return '';
+  }
+}
+
+function goHome() {
+  window.location.href = appPath('/');
 }
 
 async function initMonitorPage() {

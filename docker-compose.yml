@@ -21,8 +21,6 @@ services:
     image: redis:7
     container_name: ai-service-navigator-redis
     restart: unless-stopped
-    ports:
-      - "${REDIS_PUBLIC_PORT:-6379}:6379"
 
   api:
     build:
@@ -61,14 +59,15 @@ services:
       OAUTH_SCOPE: ${OAUTH_SCOPE}
       PORT: 3000
     ports:
-      - "${API_PUBLIC_PORT:-3000}:3000"
+      - "127.0.0.1:${API_PUBLIC_PORT:-3102}:3000"
 
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        VITE_API_BASE_URL: ${WEB_API_BASE_URL:-}
+        VITE_API_BASE_URL: ${WEB_API_BASE_URL:-/service-api}
+        VITE_WEB_BASE_PATH: ${WEB_BASE_PATH:-/service/}
     container_name: ai-service-navigator-web
     restart: unless-stopped
     environment:
@@ -78,7 +77,7 @@ services:
     volumes:
       - ./static/service-assets:/usr/share/nginx/html/service-assets:ro
     ports:
-      - "${WEB_PUBLIC_PORT:-8080}:80"
+      - "${WEB_PUBLIC_PORT:-3101}:80"
 
 volumes:
   mysql_data:

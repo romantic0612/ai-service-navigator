@@ -1,17 +1,17 @@
-FROM node:24-alpine AS deps
+FROM node:20-bullseye-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
 RUN npm ci
 
-FROM node:24-alpine AS build
+FROM node:20-bullseye-slim AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm --workspace apps/api run prisma:generate
 RUN npm run build:api
 
-FROM node:24-alpine AS runtime
+FROM node:20-bullseye-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./

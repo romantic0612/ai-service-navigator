@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ChevronDown, ChevronUp, Clock3, ExternalLink, Phone, UserRound } from '@lucide/vue';
 import { ref } from 'vue';
-import { recordUserEvent, type ServiceCard } from '../services/assistant';
+import { recordUserEvent, serviceAssetUrl, type ServiceCard } from '../services/assistant';
 
 type TextPart = {
   type: 'text' | 'link';
@@ -30,7 +30,7 @@ function openService() {
 }
 
 function openUrl(url: string) {
-  window.location.href = url;
+  window.location.href = serviceAssetUrl(url);
 }
 
 function isImageAsset(assetType: string) {
@@ -167,10 +167,10 @@ function linkParts(text?: string): TextPart[] {
         <div class="service-assets">
           <template v-for="asset in card.assets" :key="asset.id">
             <figure v-if="isImageAsset(asset.assetType)" class="service-asset-image">
-              <img :src="asset.url" :alt="asset.altText || asset.title || card.title" loading="lazy" />
+              <img :src="serviceAssetUrl(asset.url)" :alt="asset.altText || asset.title || card.title" loading="lazy" />
               <figcaption v-if="asset.title">{{ asset.title }}</figcaption>
             </figure>
-            <a v-else class="service-asset-link" :href="asset.url" @click.prevent="openUrl(asset.url)">
+            <a v-else class="service-asset-link" :href="serviceAssetUrl(asset.url)" @click.prevent="openUrl(asset.url)">
               {{ asset.title || '查看附件链接' }}
             </a>
           </template>

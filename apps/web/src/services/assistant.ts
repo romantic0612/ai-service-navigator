@@ -1,6 +1,30 @@
 import axios from 'axios';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? 'http://localhost:3100' : '');
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const apiBaseUrl = rawApiBaseUrl || (import.meta.env.DEV ? 'http://localhost:3100' : '/service-api');
+const appBaseUrl = import.meta.env.BASE_URL || '/service/';
+
+export function appPath(path = '') {
+  const base = appBaseUrl.endsWith('/') ? appBaseUrl.slice(0, -1) : appBaseUrl;
+  const suffix = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${suffix}` || '/';
+}
+
+export function serviceAssetUrl(url: string) {
+  if (!url || /^https?:\/\//i.test(url) || url.startsWith('data:')) {
+    return url;
+  }
+
+  if (url.startsWith('/service/')) {
+    return url;
+  }
+
+  if (url.startsWith('/service-assets/')) {
+    return appPath(url);
+  }
+
+  return url;
+}
 
 export type ServiceAsset = {
   id: string;
