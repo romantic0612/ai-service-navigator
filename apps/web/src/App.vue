@@ -65,6 +65,7 @@ const nextId = ref(1);
 const savedCandidates = ref<string[]>([]);
 const messages = ref<ChatMessage[]>([]);
 const chatPanel = ref<HTMLElement | null>(null);
+const hasConsumedInitialQuestion = ref(false);
 const isMonitorPage = computed(() => {
   const pathname = normalizedAppPathname();
   return pathname === '/monitor' || pathname.startsWith('/monitor/');
@@ -300,11 +301,13 @@ async function initPortalBackedPage() {
       });
       await appendUnreadNotifications(userId);
       scrollToLatestMessage('auto');
+      await consumeInitialQuestion();
     })
     .catch(() => {
       profile.value = null;
       messages.value.push(...defaultWelcomeMessages());
       scrollToLatestMessage('auto');
+      void consumeInitialQuestion();
     });
 }
 
@@ -567,6 +570,23 @@ const pendingCandidates = computed(() => {
     .flatMap((message) => message.reply?.profileUpdateCandidates ?? [])
     .filter((candidate) => !savedCandidates.value.includes(candidateKey(candidate)));
 });
+
+async function consumeInitialQuestion() {
+  if (hasConsumedInitialQuestion.value || isMonitorPage.value) {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+  const question = (url.searchParams.get('q') || '').trim();
+  if (!question) {
+    return;
+  }
+
+  hasConsumedInitialQuestion.value = true;
+  url.searchParams.delete('q');
+  window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  await submitMessage(question);
+}
 
 async function submitMessage(text = input.value) {
   const message = text.trim();
