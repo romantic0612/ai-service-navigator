@@ -588,6 +588,23 @@ async function consumeInitialQuestion() {
   await submitMessage(question);
 }
 
+function formatAssistantError(error: unknown) {
+  const response = (error as { response?: { status?: number; data?: { message?: string; error?: string } | string } }).response;
+  if (response?.status) {
+    const data = response.data;
+    const detail =
+      typeof data === 'string'
+        ? data
+        : data?.message || data?.error || '';
+    return detail
+      ? `服务异常（${response.status}）：${detail}。请刷新页面或稍后再试。`
+      : `服务异常（${response.status}），请刷新页面或稍后再试。`;
+  }
+
+  const message = error instanceof Error ? error.message : '';
+  return message ? `服务异常：${message}。请刷新页面或稍后再试。` : '服务异常，请刷新页面或稍后再试。';
+}
+
 async function submitMessage(text = input.value) {
   const message = text.trim();
   if (!message || loading.value) {
@@ -611,11 +628,11 @@ async function submitMessage(text = input.value) {
       content: reply.message,
       reply,
     });
-  } catch {
+  } catch (error) {
     messages.value.push({
       id: nextId.value++,
       role: 'assistant',
-      content: '服务异常，请稍后再试或刷新页面。',
+      content: formatAssistantError(error),
     });
   } finally {
     loading.value = false;
