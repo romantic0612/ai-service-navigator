@@ -23,6 +23,7 @@ services:
     restart: unless-stopped
 
   api:
+    image: aibs-api:latest
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -62,6 +63,7 @@ services:
       - "127.0.0.1:${API_PUBLIC_PORT:-3102}:3000"
 
   web:
+    image: aibs-web:latest
     build:
       context: .
       dockerfile: apps/web/Dockerfile
